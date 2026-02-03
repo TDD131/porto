@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tristan Davin Dakara | Gameplay Systems Architect</title>
+    
+    <!-- Fonts: Rajdhani (Tech/Futuristic) & JetBrains Mono (Code/Brutal) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="style_v3.css">
+    
+    <!-- GSAP (Required for TargetCursor) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+    
+    <!-- Background Grid/Noise -->
+    <style>
+        /* Layer Management */
+        body { background-color: #050505; }
+        #bg-canvas, .scanlines, .vignette { z-index: 0; }
+        #particles-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        
+        /* Content Layers */
+        section { position: relative; z-index: 10; }
+    </style>
+    
+    <!-- Background Grid/Noise -->
+    <canvas id="bg-canvas" style="position:fixed; top:0; left:0; z-index:0;"></canvas>
+    <div class="scanlines" style="z-index:2; pointer-events:none;"></div>
+    <div class="vignette" style="z-index:3; pointer-events:none;"></div>
+    <div id="particles-container"></div>
+
+    <!-- UI Overlay overlay -->
+    <div class="ui-frame bottom-right">/// TRISTAN.DEV</div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-inner">
+            <div class="logo">TDD<span class="blink">_</span></div>
+            <ul class="nav-links">
+                <li><a href="#hero" data-text="HOME">HOME</a></li>
+                <li><a href="#about" data-text="ABOUT">ABOUT</a></li>
+                <li><a href="#stack" data-text="STACK">STACK</a></li>
+                <li><a href="#projects" data-text="PROJECTS">PROJECTS</a></li>
+                <li><a href="#contact" data-text="CONTACT">CONTACT</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="hero">
+        <div class="container hero-container">
+            <div class="glitch-wrapper">
+                <h1 class="hero-title cyber-glitch" data-text="GAMEPLAY">GAMEPLAY</h1>
+                <h1 class="hero-title layer2" data-text="PROGRAMMER">PROGRAMMER</h1>
+            </div>
+            <p class="hero-subtitle">
+                <span class="accent">></span> TRISTAN DAVIN DAKARA <br>
+                <span class="dim">/// SPECIALIZING IN SYSTEMS ARCHITECTURE, SHADERS & PERFORMANCE</span>
+            </p>
+            
+            <div class="hero-cta">
+                <a href="#projects" class="btn-brutal">
+                    <span class="btn-content">INITIALIZE PROTCOLS</span>
+                    <div class="btn-glitch"></div>
+                </a>
+                <a href="#contact" class="btn-brutal outline">
+                    <span class="btn-content">ESTABLISH COMMS</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about">
+        <div class="container section-layout">
+            <div class="section-title">
+                <h2>01 // ABOUT_ME</h2>
+                <div class="line"></div>
+            </div>
+            <div class="about-content">
+                <p class="terminal-text">
+                    > Tristan Davin Dakara<br><br>
+                    I am a Technical Game Developer focused on building robust gameplay systems and immersive mechanics. I don't just write code; I engineer experiences. My expertise lies in bridging the gap between low-level engine architecture and high-level design intent.
+                    <br><br>
+                    Currently, I focus on optimizing render pipelines and creating modular interaction systems for AAA-style projects.
+                </p>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h3>1+</h3>
+                        <p>YEARS EXP</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>C#</h3>
+                        <p>CORE LANGS</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>6+</h3>
+                        <p>SHIPS</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section id="stack">
+        <div class="container section-layout">
+            <div class="section-title">
+                <h2>02 // TECH_STACK</h2>
+                <div class="line"></div>
+            </div>
+            
+            <div id="stack-grid" class="stack-grid">
+                <!-- Content loaded via script_v3.js -->
+                <div class="loader" style="margin: 0 auto;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Experience Timeline -->
+    <section id="experience">
+        <div class="container section-layout">
+            <div class="section-title">
+                <h2>03 // LOGS</h2>
+                <div class="line"></div>
+            </div>
+                        <div class="timeline" id="experience-container">
+                    <div class="loader" style="color: var(--text-dim); text-align: center;">> SYNCING_TIMELINE...</div>
+                </div>
+        </div>
+    </section>
+
+    <!-- Projects -->
+    <section id="projects">
+        <div class="container section-layout">
+            <div class="section-title">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>04 // DEPLOYMENTS</h2>
+                    <select id="project-filter" style="background:rgba(0,0,0,0.5); border:1px solid var(--accent); color:var(--accent); padding:5px 15px; font-family:var(--font-code); cursor:pointer;">
+                        <option value="ALL">/// ALL_SYSTEMS</option>
+                        <option value="Game">GAME</option>
+                        <option value="Model">MODEL</option>
+                        <option value="Project">PROJECT</option>
+                    </select>
+                </div>
+                <div class="line"></div>
+            </div>
+
+            <!-- Project List (Dynamic) -->
+            <div class="project-list" id="projects-container">
+                <div class="terminal-text" style="color: var(--text-dim); text-align: center; margin-top: 50px;">
+                    > CONNECTING TO DATABASE...
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact -->
+    <section id="contact">
+        <div class="container section-layout centered">
+            <h2>READY TO DEPLOY?</h2>
+            <p>AVAILABLE FOR CONTRACTS AND FULL-TIME ROLES</p>
+            
+            <a href="mailto:tristandavind@gmail.com" class="big-mail-link">
+                tristandavind@gmail.com
+            </a>
+            
+            <div class="social-grid">
+                <a href="#">GITHUB</a>
+                <a href="#">LINKEDIN</a>
+                <a href="#">ITCH.IO</a>
+                <a href="#">ARTSTATION</a>
+            </div>
+            
+            <footer>
+                <p>COPYRIGHT 2026 TRISTAN DAVIN DAKARA</p>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Main Script (Module) -->
+    <script type="module" src="script_v3.js"></script>
+</body>
+</html>

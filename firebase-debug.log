@@ -1,0 +1,161 @@
+[debug] [2026-02-03T13:43:41.831Z] ----------------------------------------------------------------------
+[debug] [2026-02-03T13:43:41.836Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\TDD\Documents\Code\Web\Portofolio\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting --debug
+[debug] [2026-02-03T13:43:41.836Z] CLI Version:   15.5.1
+[debug] [2026-02-03T13:43:41.837Z] Platform:      win32
+[debug] [2026-02-03T13:43:41.837Z] Node Version:  v24.11.1
+[debug] [2026-02-03T13:43:41.837Z] Time:          Tue Feb 03 2026 20:43:41 GMT+0700 (Western Indonesia Time)
+[debug] [2026-02-03T13:43:41.837Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-02-03T13:43:45.373Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-03T13:43:45.375Z] > authorizing via signed-in user (tristandavind@gmail.com)
+[debug] [2026-02-03T13:43:45.375Z] [iam] checking project porto-32040 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-02-03T13:43:45.377Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:45.377Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:45.378Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/porto-32040:testIamPermissions [none]
+[debug] [2026-02-03T13:43:45.378Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/porto-32040:testIamPermissions  x-goog-user-project=porto-32040
+[debug] [2026-02-03T13:43:45.379Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/porto-32040:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-02-03T13:43:48.622Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/porto-32040:testIamPermissions 200
+[debug] [2026-02-03T13:43:48.623Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/porto-32040:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-02-03T13:43:48.624Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:48.624Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:48.625Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/porto-32040 [none]
+[debug] [2026-02-03T13:43:53.475Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/porto-32040 200
+[debug] [2026-02-03T13:43:53.476Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/porto-32040 {"projectId":"porto-32040","projectNumber":"577144012078","displayName":"Porto","name":"projects/porto-32040","resources":{"hostingSite":"porto-32040"},"state":"ACTIVE","etag":"1_b06e81e1-4d6b-43ec-bdbc-9f4d4ea8ea24"}
+[info] 
+[info] === Deploying to 'porto-32040'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-02-03T13:43:53.483Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:53.483Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:53.483Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/versions [none]
+[debug] [2026-02-03T13:43:53.484Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2026-02-03T13:43:57.730Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/versions 200
+[debug] [2026-02-03T13:43:57.730Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/versions {"name":"projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[porto-32040]: beginning deploy... 
+[info] i  hosting[porto-32040]: found 11 files in . 
+[debug] [2026-02-03T13:43:57.775Z] [hosting] uploading with 200 concurrency
+[debug] [2026-02-03T13:43:57.776Z] [hosting] hash cache [] not populated
+[debug] [2026-02-03T13:43:57.796Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:57.796Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:57.797Z] [hosting] hash cache [] stored for 11 files
+[debug] [2026-02-03T13:43:57.797Z] [hosting][hash queue][FINAL] {"max":16,"min":5,"avg":7.181818181818182,"active":0,"complete":11,"success":11,"errored":0,"retried":0,"total":11,"elapsed":21}
+[debug] [2026-02-03T13:43:57.798Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c:populateFiles [none]
+[debug] [2026-02-03T13:43:57.798Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c:populateFiles {"files":{"/package.json":"5ce16cdf32de87f04b037308324f859fc26f8ff1d891b378434edd5831a96ccb","/index_v3.html":"5ff4b5ad079ae673a8e8d72c374ed82f91928c6525ad05587aef815da95b1b48","/admin.html":"74ca4d15ab5cf89190c91531546e45217369341a9cfa962e5f634f8594091354","/script_v3.js":"31a53f8af2048af99c9d9deec2924bc67f48ee56af28c414543c9b87177506e4","/style_v3.css":"8c31eec1dbfefa98379fd99ba6e056232877a7e73aa75b906aa3343c118a6cb6","/js/particles.js":"3fcb1e518b6879cc6aed88fde4aff225b6aabac0775893f7b53b874d20ff5f85","/js/firebase-config.js":"762847e1865f459250d9f5be9d2e25fdb27b1a73a03f1106f3cd66e3bcc19870","/js/target-cursor.js":"ba0b444265268fbb902816bed7e29ac050d40e0c1d12c10d7715ec396041b449","/js/fuzzy-text.js":"ee0555a68a0120b56478b5762f13f3b57ab07864b8ef8e049af89970e08cb987","/js/admin.js":"5a540eb49fb50d1bcee1a79a90f91b81a4264cf674cefb33b529a2fc150b78d7","/package-lock.json":"5876239863e3b21577417d2b8c6c691e4c535c68c39acee6db9dc08af8095b17"}}
+[debug] [2026-02-03T13:43:58.369Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c:populateFiles 200
+[debug] [2026-02-03T13:43:58.369Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c:populateFiles {"uploadRequiredHashes":["5a540eb49fb50d1bcee1a79a90f91b81a4264cf674cefb33b529a2fc150b78d7","31a53f8af2048af99c9d9deec2924bc67f48ee56af28c414543c9b87177506e4","5ff4b5ad079ae673a8e8d72c374ed82f91928c6525ad05587aef815da95b1b48","74ca4d15ab5cf89190c91531546e45217369341a9cfa962e5f634f8594091354","8c31eec1dbfefa98379fd99ba6e056232877a7e73aa75b906aa3343c118a6cb6","ee0555a68a0120b56478b5762f13f3b57ab07864b8ef8e049af89970e08cb987","ba0b444265268fbb902816bed7e29ac050d40e0c1d12c10d7715ec396041b449","5876239863e3b21577417d2b8c6c691e4c535c68c39acee6db9dc08af8095b17","5ce16cdf32de87f04b037308324f859fc26f8ff1d891b378434edd5831a96ccb","3fcb1e518b6879cc6aed88fde4aff225b6aabac0775893f7b53b874d20ff5f85","762847e1865f459250d9f5be9d2e25fdb27b1a73a03f1106f3cd66e3bcc19870"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files"}
+[debug] [2026-02-03T13:43:58.370Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.371Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.371Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.371Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.371Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.372Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.372Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.372Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.372Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.373Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.373Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.373Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.374Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.375Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.376Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.376Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.377Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.378Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.378Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.379Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.379Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.380Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:43:58.381Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5a540eb49fb50d1bcee1a79a90f91b81a4264cf674cefb33b529a2fc150b78d7 [none]
+[debug] [2026-02-03T13:43:58.381Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5a540eb49fb50d1bcee1a79a90f91b81a4264cf674cefb33b529a2fc150b78d7 [stream]
+[debug] [2026-02-03T13:43:58.384Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/31a53f8af2048af99c9d9deec2924bc67f48ee56af28c414543c9b87177506e4 [none]
+[debug] [2026-02-03T13:43:58.385Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/31a53f8af2048af99c9d9deec2924bc67f48ee56af28c414543c9b87177506e4 [stream]
+[debug] [2026-02-03T13:43:58.387Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5ff4b5ad079ae673a8e8d72c374ed82f91928c6525ad05587aef815da95b1b48 [none]
+[debug] [2026-02-03T13:43:58.388Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5ff4b5ad079ae673a8e8d72c374ed82f91928c6525ad05587aef815da95b1b48 [stream]
+[debug] [2026-02-03T13:43:58.391Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/74ca4d15ab5cf89190c91531546e45217369341a9cfa962e5f634f8594091354 [none]
+[debug] [2026-02-03T13:43:58.391Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/74ca4d15ab5cf89190c91531546e45217369341a9cfa962e5f634f8594091354 [stream]
+[debug] [2026-02-03T13:43:58.394Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/8c31eec1dbfefa98379fd99ba6e056232877a7e73aa75b906aa3343c118a6cb6 [none]
+[debug] [2026-02-03T13:43:58.394Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/8c31eec1dbfefa98379fd99ba6e056232877a7e73aa75b906aa3343c118a6cb6 [stream]
+[debug] [2026-02-03T13:43:58.395Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/ee0555a68a0120b56478b5762f13f3b57ab07864b8ef8e049af89970e08cb987 [none]
+[debug] [2026-02-03T13:43:58.395Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/ee0555a68a0120b56478b5762f13f3b57ab07864b8ef8e049af89970e08cb987 [stream]
+[debug] [2026-02-03T13:43:58.396Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/ba0b444265268fbb902816bed7e29ac050d40e0c1d12c10d7715ec396041b449 [none]
+[debug] [2026-02-03T13:43:58.397Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/ba0b444265268fbb902816bed7e29ac050d40e0c1d12c10d7715ec396041b449 [stream]
+[debug] [2026-02-03T13:43:58.398Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5876239863e3b21577417d2b8c6c691e4c535c68c39acee6db9dc08af8095b17 [none]
+[debug] [2026-02-03T13:43:58.398Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5876239863e3b21577417d2b8c6c691e4c535c68c39acee6db9dc08af8095b17 [stream]
+[debug] [2026-02-03T13:43:58.399Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5ce16cdf32de87f04b037308324f859fc26f8ff1d891b378434edd5831a96ccb [none]
+[debug] [2026-02-03T13:43:58.399Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5ce16cdf32de87f04b037308324f859fc26f8ff1d891b378434edd5831a96ccb [stream]
+[debug] [2026-02-03T13:43:58.401Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/3fcb1e518b6879cc6aed88fde4aff225b6aabac0775893f7b53b874d20ff5f85 [none]
+[debug] [2026-02-03T13:43:58.401Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/3fcb1e518b6879cc6aed88fde4aff225b6aabac0775893f7b53b874d20ff5f85 [stream]
+[debug] [2026-02-03T13:43:58.401Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/762847e1865f459250d9f5be9d2e25fdb27b1a73a03f1106f3cd66e3bcc19870 [none]
+[debug] [2026-02-03T13:43:58.402Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/762847e1865f459250d9f5be9d2e25fdb27b1a73a03f1106f3cd66e3bcc19870 [stream]
+[debug] [2026-02-03T13:43:58.402Z] [hosting][populate queue][FINAL] {"max":585,"min":585,"avg":585,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":606}
+[debug] [2026-02-03T13:43:58.402Z] [hosting] uploads queued: 11
+[info] i  hosting: uploading new files [0/11] (0%) 
+[debug] [2026-02-03T13:44:00.021Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5a540eb49fb50d1bcee1a79a90f91b81a4264cf674cefb33b529a2fc150b78d7 200
+[debug] [2026-02-03T13:44:00.022Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5a540eb49fb50d1bcee1a79a90f91b81a4264cf674cefb33b529a2fc150b78d7 [stream]
+[debug] [2026-02-03T13:44:00.458Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5ff4b5ad079ae673a8e8d72c374ed82f91928c6525ad05587aef815da95b1b48 200
+[debug] [2026-02-03T13:44:00.459Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5ff4b5ad079ae673a8e8d72c374ed82f91928c6525ad05587aef815da95b1b48 [stream]
+[debug] [2026-02-03T13:44:00.622Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/ba0b444265268fbb902816bed7e29ac050d40e0c1d12c10d7715ec396041b449 200
+[debug] [2026-02-03T13:44:00.623Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/ba0b444265268fbb902816bed7e29ac050d40e0c1d12c10d7715ec396041b449 [stream]
+[debug] [2026-02-03T13:44:00.639Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/3fcb1e518b6879cc6aed88fde4aff225b6aabac0775893f7b53b874d20ff5f85 200
+[debug] [2026-02-03T13:44:00.640Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/3fcb1e518b6879cc6aed88fde4aff225b6aabac0775893f7b53b874d20ff5f85 [stream]
+[debug] [2026-02-03T13:44:00.791Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/8c31eec1dbfefa98379fd99ba6e056232877a7e73aa75b906aa3343c118a6cb6 200
+[debug] [2026-02-03T13:44:00.792Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/8c31eec1dbfefa98379fd99ba6e056232877a7e73aa75b906aa3343c118a6cb6 [stream]
+[debug] [2026-02-03T13:44:00.795Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/ee0555a68a0120b56478b5762f13f3b57ab07864b8ef8e049af89970e08cb987 200
+[debug] [2026-02-03T13:44:00.796Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/ee0555a68a0120b56478b5762f13f3b57ab07864b8ef8e049af89970e08cb987 [stream]
+[debug] [2026-02-03T13:44:00.798Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/74ca4d15ab5cf89190c91531546e45217369341a9cfa962e5f634f8594091354 200
+[debug] [2026-02-03T13:44:00.799Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/74ca4d15ab5cf89190c91531546e45217369341a9cfa962e5f634f8594091354 [stream]
+[debug] [2026-02-03T13:44:00.958Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5ce16cdf32de87f04b037308324f859fc26f8ff1d891b378434edd5831a96ccb 200
+[debug] [2026-02-03T13:44:00.959Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5ce16cdf32de87f04b037308324f859fc26f8ff1d891b378434edd5831a96ccb [stream]
+[debug] [2026-02-03T13:44:00.970Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/762847e1865f459250d9f5be9d2e25fdb27b1a73a03f1106f3cd66e3bcc19870 200
+[debug] [2026-02-03T13:44:00.970Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/762847e1865f459250d9f5be9d2e25fdb27b1a73a03f1106f3cd66e3bcc19870 [stream]
+[debug] [2026-02-03T13:44:01.139Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/31a53f8af2048af99c9d9deec2924bc67f48ee56af28c414543c9b87177506e4 200
+[debug] [2026-02-03T13:44:01.140Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/31a53f8af2048af99c9d9deec2924bc67f48ee56af28c414543c9b87177506e4 [stream]
+[debug] [2026-02-03T13:44:01.308Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5876239863e3b21577417d2b8c6c691e4c535c68c39acee6db9dc08af8095b17 200
+[debug] [2026-02-03T13:44:01.309Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/porto-32040/versions/4484e700a5a07a5c/files/5876239863e3b21577417d2b8c6c691e4c535c68c39acee6db9dc08af8095b17 [stream]
+[debug] [2026-02-03T13:44:01.309Z] [hosting][upload queue][FINAL] {"max":2934,"min":1653,"avg":2400.3636363636365,"active":0,"complete":11,"success":11,"errored":0,"retried":0,"total":11,"elapsed":2939}
+[info] i  hosting: upload complete 
+[info] +  hosting[porto-32040]: file upload complete 
+[debug] [2026-02-03T13:44:01.310Z] [hosting] deploy completed after 3573ms
+[debug] [2026-02-03T13:44:01.310Z] [
+  {
+    "config": {
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index_v3.html"
+        }
+      ],
+      "site": "porto-32040"
+    },
+    "version": "projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c"
+  }
+]
+[info] i  hosting[porto-32040]: finalizing version... 
+[debug] [2026-02-03T13:44:01.314Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:44:01.314Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:44:01.315Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/versions/4484e700a5a07a5c updateMask=status%2Cconfig
+[debug] [2026-02-03T13:44:01.315Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/versions/4484e700a5a07a5c {"status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index_v3.html"}]}}
+[debug] [2026-02-03T13:44:01.878Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/versions/4484e700a5a07a5c 200
+[debug] [2026-02-03T13:44:01.878Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/versions/4484e700a5a07a5c {"name":"projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index_v3.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-02-03T13:44:00.420734Z","createUser":{"email":"tristandavind@gmail.com"},"finalizeTime":"2026-02-03T13:44:04.900320Z","finalizeUser":{"email":"tristandavind@gmail.com"}}
+[debug] [2026-02-03T13:44:01.879Z] [hosting] finalized version for porto-32040:[object Object]
+[info] +  hosting[porto-32040]: version finalized 
+[info] i  hosting[porto-32040]: releasing new version... 
+[debug] [2026-02-03T13:44:01.880Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:44:01.881Z] Checked if tokens are valid: true, expires at: 1770129500332
+[debug] [2026-02-03T13:44:01.881Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/channels/live/releases versionName=projects%2F577144012078%2Fsites%2Fporto-32040%2Fversions%2F4484e700a5a07a5c
+[debug] [2026-02-03T13:44:01.882Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/channels/live/releases {}
+[debug] [2026-02-03T13:44:02.231Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/channels/live/releases 200
+[debug] [2026-02-03T13:44:02.232Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/porto-32040/channels/live/releases {"name":"projects/577144012078/sites/porto-32040/channels/live/releases/1770126244947000","version":{"name":"projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index_v3.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-02-03T13:44:00.420734Z","createUser":{"email":"tristandavind@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocIbXEZtz1qPLsyPnMMy2iyK5rIUmP_4s9zP1qxuV7qqqVo9ZiOi"},"finalizeTime":"2026-02-03T13:44:04.900320Z","finalizeUser":{"email":"tristandavind@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocIbXEZtz1qPLsyPnMMy2iyK5rIUmP_4s9zP1qxuV7qqqVo9ZiOi"}},"type":"DEPLOY","releaseTime":"2026-02-03T13:44:04.947Z","releaseUser":{"email":"tristandavind@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocIbXEZtz1qPLsyPnMMy2iyK5rIUmP_4s9zP1qxuV7qqqVo9ZiOi"}}
+[debug] [2026-02-03T13:44:02.233Z] [hosting] release: {"name":"projects/577144012078/sites/porto-32040/channels/live/releases/1770126244947000","version":{"name":"projects/577144012078/sites/porto-32040/versions/4484e700a5a07a5c","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index_v3.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-02-03T13:44:00.420734Z","createUser":{"email":"tristandavind@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocIbXEZtz1qPLsyPnMMy2iyK5rIUmP_4s9zP1qxuV7qqqVo9ZiOi"},"finalizeTime":"2026-02-03T13:44:04.900320Z","finalizeUser":{"email":"tristandavind@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocIbXEZtz1qPLsyPnMMy2iyK5rIUmP_4s9zP1qxuV7qqqVo9ZiOi"}},"type":"DEPLOY","releaseTime":"2026-02-03T13:44:04.947Z","releaseUser":{"email":"tristandavind@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocIbXEZtz1qPLsyPnMMy2iyK5rIUmP_4s9zP1qxuV7qqqVo9ZiOi"}}
+[info] +  hosting[porto-32040]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/porto-32040/overview
+[info] Hosting URL: https://porto-32040.web.app

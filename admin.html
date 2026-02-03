@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADMIN // SYSTEM ACCESS</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS (Reusing V3 Style) -->
+    <link rel="stylesheet" href="style_v3.css">
+    
+    <style>
+        /* Admin Specific Overrides */
+        body { padding-top: 100px; }
+        .admin-box {
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid var(--text-dim);
+            padding: 40px;
+            max-width: 500px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .admin-header { text-align: center; margin-bottom: 30px; }
+        .admin-header h1 { font-size: 2rem; color: var(--accent); }
+        
+        input, textarea, select {
+            width: 100%;
+            background: #050505;
+            border: 1px solid var(--text-dim);
+            color: var(--text-primary);
+            padding: 15px;
+            margin-bottom: 20px;
+            font-family: var(--font-code);
+            font-size: 0.9rem;
+        }
+        
+        input:focus, textarea:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 10px rgba(255, 62, 62, 0.2);
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-family: var(--font-code);
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        #dashboard { display: none; max-width: 900px; margin: 0 auto; }
+        
+        .project-item {
+            background: #0a0a0a;
+            border: 1px solid var(--border-light);
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .project-item h3 { color: var(--text-primary); margin-bottom: 5px; }
+        .project-item p { color: var(--text-dim); font-size: 0.8rem; }
+        
+        .btn-delete {
+            background: transparent;
+            border: 1px solid red;
+            color: red;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-family: var(--font-code);
+        }
+        .btn-delete:hover { background: red; color: black; }
+
+        .btn-edit {
+            background: transparent;
+            border: 1px solid #00ffff; /* Cyan */
+            color: #00ffff;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-family: var(--font-code);
+            margin-right: 5px;
+        }
+        .btn-edit:hover { background: #00ffff; color: black; }
+        
+        .status-msg {
+            text-align: center;
+            margin-top: 20px;
+            font-family: var(--font-code);
+            min-height: 20px;
+        }
+        .success { color: #00ff00; }
+        .error { color: red; }
+
+        /* Loader */
+        .loader {
+            border: 2px solid #333;
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* NAVBAR STYLES */
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-family: var(--font-code);
+            font-size: 1rem;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .nav-btn:hover { color: var(--text-primary); }
+        .nav-btn.active {
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+        }
+        
+        /* STICKY NAV */
+        .admin-nav {
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+            background: rgba(10,10,10,0.95);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--border-light);
+            padding: 15px 20px;
+            margin-bottom: 40px;
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+    
+    <!-- LOGIN PANEL -->
+    <div id="login-panel">
+        <div class="admin-box">
+            <div class="admin-header">
+                <h1>/// SYSTEM_LOGIN</h1>
+                <p>AUTHORIZED PERSONNEL ONLY</p>
+            </div>
+            
+            <form id="login-form">
+                <label>IDENTIFIER (EMAIL)</label>
+                <input type="email" id="email" required placeholder="admin@system.dev">
+                
+                <label>PASSCODE</label>
+                <input type="password" id="password" required placeholder="••••••••">
+                
+                <button type="submit" class="btn-brutal" style="width: 100%;">
+                    AUTHENTICATE
+                </button>
+            </form>
+            <div id="login-msg" class="status-msg"></div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD PANEL -->
+    <div id="dashboard">
+        <div class="container section-layout">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1 class="hero-title" style="font-size: 2.5rem; margin: 0;">ADMIN // <span style="color: var(--accent);">CMS</span></h1>
+                <button id="btn-logout" class="btn-brutal outline">LOGOUT</button>
+            </div>
+
+            <!-- NAVBAR -->
+            <!-- NAVBAR -->
+            <div class="admin-nav">
+                <button class="nav-btn active" data-target="section-projects">PROJECTS</button>
+                <button class="nav-btn" data-target="section-stack">TECH STACK</button>
+                <button class="nav-btn" data-target="section-experience">EXPERIENCE</button>
+                <button class="nav-btn" data-target="section-logs">DEV LOGS</button>
+            </div>
+
+            <!-- === SECTION: PROJECTS === -->
+            <div id="section-projects" class="admin-section">
+                <!-- ADD NEW PROJECT -->
+                <div class="admin-box" style="max-width: 100%; margin-bottom: 50px;">
+                    <h3 style="margin-bottom: 20px; color: var(--accent);">+ UPLOAD NEW PROJECT</h3>
+                    <form id="add-project-form">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <label>PROJECT TITLE</label>
+                                <input type="text" id="p-title" required placeholder="Ex: ARZANO CRYPTO">
+                            </div>
+                            <div>
+                                <label>TYPE / CATEGORY</label>
+                                <select id="p-type" style="height: 50px;" required>
+                                    <option value="Game">Game</option>
+                                    <option value="Model">Model</option>
+                                    <option value="Project">Project</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <label>DESCRIPTION</label>
+                        <textarea id="p-desc" rows="3" required placeholder="Brief project description..."></textarea>
+
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+                            <div>
+                                <label>ICON (URL or UPLOAD)</label>
+                                <input type="text" id="project-type" placeholder="Type (e.g. Web App)" class="admin-input" required>
+                <select id="project-status" class="admin-input" required>
+                    <option value="Working">Working</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Discontinue">Discontinue</option>
+                </select>
+                                <input type="file" id="p-icon-file" accept="image/*" style="font-size: 0.8rem;">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <label>TECH STACK (Comma Separated)</label>
+                                <input type="text" id="p-stack" required placeholder="Ex: REACT, SOLIDITY, WEBGL">
+                            </div>
+                            <div>
+                                <label>LINK / URL</label>
+                                <input type="text" id="p-link" required placeholder="#">
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn-brutal">EXECUTE UPLOAD</button>
+                        <div class="loader" id="upload-loader"></div>
+                    </form>
+                </div>
+
+                <!-- EXISTING PROJECTS -->
+                <div class="section-title">
+                    <h2>/// ACTIVE_PROJECTS_DATABASE</h2>
+                    <div class="line"></div>
+                </div>
+                
+                <div id="admin-project-list">
+                    <!-- Projects will be loaded here -->
+                    <div class="loader" style="display: block;"></div>
+                </div>
+            </div>
+
+            <!-- === SECTION: STACK === -->
+            <div id="section-stack" class="admin-section" style="display: none;">
+                <div class="admin-box" style="max-width: 100%; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px; color: var(--accent);">+ ADD NEW MODULE</h3>
+                    <form id="stack-form">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <label>TECH NAME</label>
+                                <input type="text" id="s-name" required placeholder="Ex: TYPESCRIPT">
+                            </div>
+                            <div>
+                                <label>CATEGORY</label>
+                                <select id="s-category" style="height: 50px;">
+                                    <option value="ENGINES">ENGINES</option>
+                                    <option value="LANGUAGES">LANGUAGES</option>
+                                    <option value="TOOLS">TOOLS</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-brutal">INSTALL MODULE</button>
+                    </form>
+                </div>
+                <div id="admin-stack-list">
+                    <!-- Stack loaded here -->
+                </div>
+            </div>
+
+            <!-- === SECTION: EXPERIENCE === -->
+            <div id="section-experience" class="admin-section" style="display: none;">
+                <div class="admin-box" style="max-width: 100%; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px; color: var(--accent);">+ ADD JOB HISTORY</h3>
+                    <form id="exp-form">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <label>ROLE / POSITION</label>
+                                <input type="text" id="e-role" required placeholder="Ex: SENIOR SYSTEMS DEV">
+                            </div>
+                            <div>
+                                <label>COMPANY / STUDIO</label>
+                                <input type="text" id="e-company" required placeholder="Ex: FREELANCE">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+                            <div>
+                                <label>PERIOD (YEAR)</label>
+                                <input type="text" id="e-period" required placeholder="Ex: 2024 - PRESENT">
+                            </div>
+                        </div>
+                        <label>FOCUS</label>
+                        <input type="text" id="e-focus" placeholder="Ex: ENVIRONMENT ART, OPTIMIZATION">
+
+                        <label>DESCRIPTION</label>
+                        <textarea id="e-desc" rows="3" required placeholder="Brief role description..."></textarea>
+                        
+                        <label>KEY CONTRIBUTIONS (One per line)</label>
+                        <textarea id="e-contributions" rows="4" placeholder="Ex: - Built rendering pipeline..."></textarea>
+                        
+                        <button type="submit" class="btn-brutal">LOG HISTORY</button>
+                    </form>
+                </div>
+                <div id="admin-exp-list">
+                    <!-- Experience loaded here -->
+                </div>
+            </div>
+
+            <!-- === SECTION: LOGS === -->
+            <div id="section-logs" class="admin-section" style="display: none;">
+                 <div class="admin-box" style="max-width: 100%; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px; color: var(--accent);">+ LOG NEW ENTRY</h3>
+                    <form id="log-form">
+                        <label>LOG MESSAGE</label>
+                        <input type="text" id="l-msg" required placeholder="Ex: Optimized WebGL Rendering Pipeline...">
+                        <label>Tags (Optional)</label>
+                        <input type="text" id="l-tags" placeholder="OPTIMIZATION, BUGFIX">
+                        <button type="submit" class="btn-brutal">COMMIT LOG</button>
+                    </form>
+                </div>
+                <div id="admin-log-list">
+                    <!-- Logs loaded here -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script type="module" src="js/admin.js"></script>
+
+</body>
+</html>
