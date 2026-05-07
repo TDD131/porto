@@ -708,40 +708,54 @@ function toggleEditProject(id, data) {
     }
 
     slot.style.display = "block";
+
+    // Build view angle slots HTML from existing model_views data
+    const modelViews = data.model_views || {};
+    const viewAngles = ['front', 'back', 'left', 'right', 'top', 'bottom'];
+    const requiredViews = ['front', 'back', 'left', 'right'];
+    let viewSlotsHtml = '';
+    viewAngles.forEach(angle => {
+        const isReq = requiredViews.includes(angle);
+        const url = modelViews[angle] || '';
+        viewSlotsHtml += `
+        <div class="view-slot">
+            <div class="slot-header"><span class="slot-label">${angle.toUpperCase()}</span><span class="slot-tag ${isReq ? 'req' : 'opt'}">${isReq ? 'REQUIRED' : 'OPTIONAL'}</span></div>
+            <div class="slot-preview" id="edit-preview-${angle}-${id}">${url ? `<img src="${url}" alt="preview">` : '<div class="slot-empty">NO IMAGE</div>'}</div>
+            <input type="file" id="edit-file-${angle}-${id}" accept="image/*" class="view-file-input">
+            <input type="text" id="edit-url-${angle}-${id}" class="view-url-input" value="${url}" placeholder="URL auto-filled">
+            <div class="slot-status" id="edit-status-${angle}-${id}"></div>
+        </div>`;
+    });
+
+    const is3D = data.type === '3D Model';
+
     slot.innerHTML = `
         <form class="inline-edit-form" data-id="${id}">
             <h4 style="color:var(--accent); margin-bottom:15px;">/// EDIT_MODE</h4>
-            
-             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
                     <label>PROJECT TITLE</label>
                     <input type="text" class="edit-p-title" value="${data.title}" required>
                 </div>
                 <div>
-                     <label>TYPE / CATEGORY</label>
-                     <select class="edit-p-type" style="height:50px; width:100%; background:#050505; border:1px solid var(--text-dim); color:white;">
+                    <label>TYPE / CATEGORY</label>
+                    <select class="edit-p-type" id="edit-p-type-${id}" style="height:50px; width:100%; background:#050505; border:1px solid var(--text-dim); color:white;">
                         <option value="Game" ${data.type === 'Game' ? 'selected' : ''}>Game</option>
                         <option value="3D Model" ${data.type === '3D Model' ? 'selected' : ''}>3D Model</option>
                         <option value="Web" ${data.type === 'Web' ? 'selected' : ''}>Web</option>
-                     </select>
+                    </select>
                 </div>
             </div>
 
             <label>DESCRIPTION</label>
-            <textarea class="edit-p-desc" rows="3" required>${data.description}</textarea>
+            <textarea class="edit-p-desc" id="edit-p-desc-${id}" rows="3" required>${data.description}</textarea>
+            <div style="margin-bottom: 20px; display: flex; align-items: center;">
+                <button type="button" id="edit-btn-ai-${id}" class="btn-ai">AI GENERATE</button>
+                <span id="edit-ai-status-${id}" class="ai-status-msg"></span>
+            </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <label>SKETCHFAB UID (3D ONLY)</label>
-                    <input type="text" class="edit-p-sfuid" value="${data.sketchfab_uid || ''}" placeholder="uid_from_sketchfab">
-                </div>
-                            </div>
-
-             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <label>ICON URL</label>
-                    <input type="text" class="edit-p-icon" value="${data.icon_url || ''}" placeholder="https://...">
-                </div>
                 <div>
                     <label>TECH STACK <span style="color: var(--text-dim); font-weight: 400;">(Multi-select dropdown)</span></label>
                     <div class="multi-select-dropdown" id="edit-stack-dropdown-${id}">
@@ -749,19 +763,47 @@ function toggleEditProject(id, data) {
                             <span id="edit-stack-selected-count-${id}">0 selected</span>
                             <span class="dropdown-arrow">▼</span>
                         </div>
-                        <div class="dropdown-options" id="edit-stack-options-${id}" style="display: none;">
-                            <!-- Options populated by JS -->
-                        </div>
+                        <div class="dropdown-options" id="edit-stack-options-${id}" style="display: none;"></div>
                     </div>
                     <input type="text" class="edit-p-stack" style="display:none;" value="${(data.stack || []).join(',')}" required>
                 </div>
             </div>
-            
-            <div style="margin-top:20px;">
-                <label>LINK / URL</label>
-                <input type="text" class="edit-p-link" value="${data.link || '#'}" required>
+
+            <!-- Standard Asset Panel (Game/Web) -->
+            <div id="edit-standard-panel-${id}" style="${is3D ? 'display:none;' : ''}">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <label>ICON URL</label>
+                        <input type="text" class="edit-p-icon" value="${data.icon_url || ''}" placeholder="https://...">
+                    </div>
+                    <div>
+                        <label>LINK / URL</label>
+                        <input type="text" class="edit-p-link" value="${data.link || '#'}" placeholder="https://...">
+                    </div>
+                </div>
             </div>
-            
+
+            <!-- 3D Model Asset Panel -->
+            <div id="edit-model3d-panel-${id}" style="${is3D ? '' : 'display:none;'}">
+                <div class="admin-subpanel">
+                    <h4 style="color:var(--accent); margin:0 0 6px; font-family:var(--font-code); font-size:0.85rem;">/// VIEW ANGLE RENDERS</h4>
+                    <p style="color:var(--text-dim); font-size:0.72rem; margin:0 0 12px; font-family:var(--font-code);">Min. 4 required. Front view auto-becomes thumbnail.</p>
+                    <div class="view-angles-grid">
+                        ${viewSlotsHtml}
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <label>3D MODEL FILE <span style="color: var(--text-dim); font-weight: 400;">(FBX, OBJ, DAE, BLEND, STL - Max 100MB)</span></label>
+                        <input type="file" id="edit-p-model-file-${id}" accept=".fbx,.obj,.dae,.blend,.stl" class="view-file-input">
+                    </div>
+                    <div>
+                        <label>SKETCHFAB UID (Manual Override)</label>
+                        <input type="text" class="edit-p-sfuid" value="${data.sketchfab_uid || ''}" placeholder="uid from sketchfab.com">
+                    </div>
+                </div>
+            </div>
+
             <div style="margin-top:20px; display:flex; gap:10px;">
                 <button type="submit" class="btn-brutal" style="flex:1;">SAVE CHANGES</button>
                 <button type="button" class="btn-brutal outline" style="flex:1;" onclick="document.getElementById('edit-slot-${id}').style.display='none'">CANCEL</button>
@@ -769,9 +811,12 @@ function toggleEditProject(id, data) {
         </form>
     `;
 
-    // Populate pills for edit form
+    // Initialize type switch, view slot uploads, AI button, and stack picker for edit form
+    setupEditTypeSwitch(id);
+    setupEditModelViewSlots(id);
+    setupEditAiButton(id);
     populateEditStackPicker(id, data.stack || []);
-    
+
     const form = slot.querySelector("form");
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -780,21 +825,196 @@ function toggleEditProject(id, data) {
         btn.disabled = true;
 
         try {
+            const type = form.querySelector(".edit-p-type").value;
             const updates = {
                 title: form.querySelector(".edit-p-title").value,
-                type: form.querySelector(".edit-p-type").value,
+                type: type,
                 description: form.querySelector(".edit-p-desc").value,
                 stack: getSelectedEditStack(id),
-                link: form.querySelector(".edit-p-link").value,
-                icon_url: form.querySelector(".edit-p-icon").value,
-                sketchfab_uid: form.querySelector(".edit-p-sfuid").value
+                icon_url: form.querySelector(".edit-p-icon")?.value || "",
+                link: form.querySelector(".edit-p-link")?.value || "",
+                sketchfab_uid: form.querySelector(".edit-p-sfuid")?.value || ""
             };
+
+            // For 3D Model, collect view angles and override icon_url + link from front view
+            if (type === "3D Model") {
+                const requiredViews = ["front", "back", "left", "right"];
+                for (const view of requiredViews) {
+                    const urlInput = document.getElementById(`edit-url-${view}-${id}`);
+                    if (!urlInput || !urlInput.value.trim()) {
+                        alert(`ERROR: ${view.toUpperCase()} view image is required.`);
+                        btn.disabled = false;
+                        btn.innerText = "SAVE CHANGES";
+                        return;
+                    }
+                }
+
+                const model_views = {};
+                ["front", "back", "left", "right", "top", "bottom"].forEach(k => {
+                    const urlInput = document.getElementById(`edit-url-${k}-${id}`);
+                    model_views[k] = urlInput ? urlInput.value.trim() || null : null;
+                });
+                updates.model_views = model_views;
+                updates.icon_url = model_views.front || updates.icon_url;
+                updates.link = model_views.front || "";
+            }
+
+            // Handle 3D model file re-upload to Sketchfab if a new file is selected
+            const modelFile = document.getElementById(`edit-p-model-file-${id}`)?.files[0];
+            if (type === "3D Model" && modelFile && !updates.sketchfab_uid) {
+                btn.innerText = "UPLOADING TO SKETCHFAB...";
+                const sfUid = await handleSketchfabUpload(modelFile, updates.title, updates.description);
+                updates.sketchfab_uid = sfUid;
+            }
+
             await setDoc(doc(db, "projects", id), updates, { merge: true });
             alert("PROJECT UPDATED");
             slot.style.display = "none";
         } catch (err) { alert("ERROR: " + err.message); }
         btn.disabled = false;
         btn.innerText = "SAVE CHANGES";
+    });
+}
+
+/**
+ * Toggles standard vs 3D model asset panels in the edit form
+ * when the category select is changed, mirroring the create form behavior.
+ * @param {string} projectId - The project document ID for unique selectors
+ */
+function setupEditTypeSwitch(projectId) {
+    const typeSelect = document.getElementById(`edit-p-type-${projectId}`);
+    if (!typeSelect) return;
+    typeSelect.addEventListener('change', () => {
+        const is3D = typeSelect.value === '3D Model';
+        const stdPanel = document.getElementById(`edit-standard-panel-${projectId}`);
+        const mdlPanel = document.getElementById(`edit-model3d-panel-${projectId}`);
+        if (stdPanel) stdPanel.style.display = is3D ? 'none' : 'block';
+        if (mdlPanel) mdlPanel.style.display = is3D ? 'block' : 'none';
+    });
+}
+
+/**
+ * Wires per-slot file upload logic for each view angle in the edit form.
+ * On file change: shows local preview, uploads to Cloudinary, auto-fills URL input.
+ * If the front slot is uploaded, also auto-fills the icon_url field.
+ * @param {string} projectId - The project document ID for unique selectors
+ */
+function setupEditModelViewSlots(projectId) {
+    ['front', 'back', 'left', 'right', 'top', 'bottom'].forEach(angleKey => {
+        const fileInput = document.getElementById(`edit-file-${angleKey}-${projectId}`);
+        const urlInput = document.getElementById(`edit-url-${angleKey}-${projectId}`);
+        const statusEl = document.getElementById(`edit-status-${angleKey}-${projectId}`);
+        const previewEl = document.getElementById(`edit-preview-${angleKey}-${projectId}`);
+        if (!fileInput || !urlInput) return;
+
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            previewEl.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="preview">`;
+            statusEl.textContent = 'UPLOADING...';
+            statusEl.className = 'slot-status uploading';
+            fileInput.disabled = true;
+
+            try {
+                const cloudUrl = await uploadToCloudinary(file);
+                urlInput.value = cloudUrl;
+                previewEl.innerHTML = `<img src="${cloudUrl}" alt="preview">`;
+                statusEl.textContent = 'UPLOADED';
+                statusEl.className = 'slot-status done';
+
+                // Auto-set icon_url from front view for Firestore thumbnail
+                if (angleKey === 'front') {
+                    const iconInput = document.querySelector(`#edit-slot-${projectId} .edit-p-icon`);
+                    if (iconInput) iconInput.value = cloudUrl;
+                }
+            } catch (err) {
+                statusEl.textContent = 'FAILED: ' + err.message;
+                statusEl.className = 'slot-status error';
+            } finally {
+                fileInput.disabled = false;
+            }
+        });
+    });
+}
+
+/**
+ * Wires the AI Generate button in the edit form to auto-fill description
+ * using Gemini API, mirroring the create form's AI functionality.
+ * For 3D Model category, uses the front view file for image analysis.
+ * @param {string} projectId - The project document ID for unique selectors
+ */
+function setupEditAiButton(projectId) {
+    const aiBtn = document.getElementById(`edit-btn-ai-${projectId}`);
+    const aiStatus = document.getElementById(`edit-ai-status-${projectId}`);
+    if (!aiBtn) return;
+
+    aiBtn.addEventListener('click', async () => {
+        if (!GEMINI_API_KEY) {
+            alert("Gemini API Key is required!");
+            return;
+        }
+
+        const title = document.querySelector(`#edit-slot-${projectId} .edit-p-title`).value;
+        const type = document.getElementById(`edit-p-type-${projectId}`).value;
+        const stackArr = getSelectedEditStack(projectId);
+        const stack = stackArr.length > 0 ? stackArr.join(", ") : "Unknown";
+        // For 3D Model, use the front-view file for image analysis
+        const iconFile = type === "3D Model"
+            ? document.getElementById(`edit-file-front-${projectId}`)?.files[0]
+            : null;
+
+        if (!title) {
+            alert("Please enter a project title first!");
+            return;
+        }
+
+        aiBtn.disabled = true;
+        aiStatus.textContent = "AI IS THINKING...";
+        aiStatus.className = "ai-status-msg";
+
+        try {
+            let prompt = `Write a professional, concise, and engaging description for a portfolio project.
+Title: ${title}
+Category: ${type}
+Tech Stack: ${stack}
+
+The description should be briefly highlighting the core features and your role. Use professional tone. Output ONLY the description text, no markdown, no quotes.`;
+
+            if (type === "3D Model") {
+                prompt += "\nFocus on the visual style, geometry, and craftsmanship of the 3D model.";
+            }
+
+            const contents = [{ parts: [{ text: prompt }] }];
+
+            if (iconFile) {
+                aiStatus.textContent = "AI IS ANALYZING IMAGE...";
+                const base64Data = await fileToBase64(iconFile);
+                contents[0].parts.push({
+                    inline_data: { mime_type: iconFile.type, data: base64Data }
+                });
+                prompt += "\nBased on the attached image, describe the visual style accurately.";
+                contents[0].parts[0].text = prompt;
+            }
+
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+                body: JSON.stringify({ contents })
+            });
+
+            const data = await resp.json();
+            const aiText = data.candidates[0].content.parts[0].text;
+            document.getElementById(`edit-p-desc-${projectId}`).value = aiText.trim();
+            aiStatus.textContent = "DONE ✓";
+            aiStatus.className = "ai-status-msg success";
+        } catch (err) {
+            console.error("AI Error:", err);
+            aiStatus.textContent = "AI FAILED";
+            aiStatus.className = "ai-status-msg error";
+        } finally {
+            aiBtn.disabled = false;
+        }
     });
 }
 
