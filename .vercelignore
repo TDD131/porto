@@ -1,5 +1,7 @@
 node_modules
-.firebase
 .git
-firebase-debug.log
+.firebase
+package-lock.json
+package.json
+*.log
 .DS_Store

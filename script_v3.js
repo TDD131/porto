@@ -4,6 +4,17 @@ import Lenis from "https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/+es
 
 /* ... (Lenis and Canvas code remains same) ... */
 
+function normalizeStack(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string") {
+        return value
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+    return [];
+}
+
 // --- FIREBASE DATA FETCHING ---
 
 // 1. PROJECTS
@@ -32,13 +43,14 @@ async function loadProjects(filterType = "ALL") {
 
         // RENDER
         if (displayData.length === 0) {
-            container.innerHTML = `<div class="terminal-text" style="color:red; text-align:center;">> SYSTEM_EMPTY: NO_DATA_FOUND</div>`;
+            container.innerHTML = `<div class="terminal-text" style="text-align:center;">No projects found.</div>`;
             return;
         }
 
         let html = "";
         displayData.forEach(data => {
-            const stackHtml = (data.stack || []).map(tech => `<span class="tech-tag">${tech}</span>`).join("");
+            const stack = normalizeStack(data.stack);
+            const stackHtml = stack.map(tech => `<span class="tech-tag">${tech}</span>`).join("");
             
             html += `
                 <div class="project-row">
@@ -49,16 +61,10 @@ async function loadProjects(filterType = "ALL") {
 
                       <!-- CONTENT -->
                     <div class="project-content">
-                        <!-- HEADER ROW 1: Title & Status -->
-                        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:5px;">
-                            <h3 class="project-title" style="margin:0; line-height:1;">${data.title}</h3>
-                            ${data.status ? `<span class="status-badge ${data.status.toLowerCase()}">${data.status}</span>` : ''}
-                        </div>
-
-                        <!-- HEADER ROW 2: Type & Stack -->
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px dashed #333; padding-bottom:15px; margin-bottom:15px;">
-                            <span class="project-type" style="margin:0;">${data.type}</span>
-                            <span style="font-family:var(--font-code); font-size:0.9rem; color:var(--text-dim); text-align:right;">${(Array.isArray(data.stack) ? data.stack : []).join(", ")}</span>
+                        <h3 class="project-title">${data.title}</h3>
+                        <div class="project-meta">
+                            <span class="project-type">${data.type || ""}</span>
+                            <div class="project-tags">${stackHtml}</div>
                         </div>
                         
                         <div class="project-body">
@@ -68,21 +74,27 @@ async function loadProjects(filterType = "ALL") {
 
                     <!-- ACTION (FAR RIGHT) -->
                     <div class="project-action">
-                        <a href="${data.link}" target="_blank" class="btn-access" style="width:100%; text-align:center;">ACCESS ></a>
+                        ${(() => {
+                            let targetLink = data.link || "#";
+                            let targetTarget = "_blank";
+                            
+                            if (data.type === "3D Model" || data.type === "Model") {
+                                targetLink = `model.html?id=${data.id}`;
+                                targetTarget = "_self"; // Open in same tab
+                            }
+                            
+                            return `<a href="${targetLink}" target="${targetTarget}" class="btn-access" style="width:100%; text-align:center;">Open</a>`;
+                        })()}
                     </div>
                 </div>
             `;
-            // The original code had `index++` here, but `index` was not defined.
-            // Assuming it was a leftover or intended for a different purpose,
-            // and not directly related to the requested change, it's removed
-            // to maintain consistency with the provided snippet and avoid errors.
         });
 
         container.innerHTML = html;
 
     } catch (error) {
         console.error("Error loading projects:", error);
-        container.innerHTML = `<div class="terminal-text" style="color:red; text-align:center;">> ERROR: CONNECTION_LOST</div>`;
+        container.innerHTML = `<div class="terminal-text" style="text-align:center;">Couldn’t load projects.</div>`;
     }
 }
 
@@ -140,7 +152,7 @@ async function loadTechStack() {
                 <div class="stack-card">
                     <div class="card-header">// ${category}</div>
                     <ul>
-                        ${items.map(item => `<li><span>${item}</span><span style="color: var(--accent);">READY</span></li>`).join("")}
+                        ${items.map(item => `<li><span>${item}</span></li>`).join("")}
                     </ul>
                 </div>
             `;
@@ -186,7 +198,7 @@ async function loadExperience() {
                 <div class="timeline-item">
                     <div class="time-marker">${data.period}</div>
                     <div class="time-content">
-                        <h3>${data.role} @ <span style="color:var(--accent)">${data.company}</span></h3>
+                        <h3>${data.role}</h3>
                         ${data.focus ? `<p class="log-focus"><strong>Focus:</strong> ${data.focus}</p>` : ''}
                         <p class="description">${data.description}</p>
                         ${contribHTML}
@@ -202,61 +214,86 @@ async function loadExperience() {
     }
 }
 
-import { FuzzyText } from "./js/fuzzy-text.js";
-import { Particles } from "./js/particles.js";
-import { TargetCursor } from "./js/target-cursor.js";
-
 // --- DOM ELEMENTS ---
 // INIT
 document.addEventListener("DOMContentLoaded", async () => {
-    // -1. INIT CUSTOM CURSOR
-    new TargetCursor({
-        targetSelector: 'a, button, .btn-brutal, .nav-links a, input, .clickable'
-    });
-    
-    // Force Hide Default Cursor globally
-    const style = document.createElement('style');
-    style.innerHTML = '* { cursor: none !important; }';
-    document.head.appendChild(style);
+    const toggle = document.getElementById("theme-toggle");
+    if (toggle) {
+        const prefersReducedMotion = () => {
+            try {
+                return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            } catch (e) {
+                return false;
+            }
+        };
 
-    // 0. INIT PARTICLES BACKGROUND
-    const particlesContainer = document.getElementById("particles-container");
-    if(particlesContainer) {
-        new Particles(particlesContainer, {
-            particleCount: 200,
-            particleSpread: 10,
-            speed: 0.1,
-            particleColors: ['#ffffff', '#ffffff', '#888888'],
-            moveParticlesOnHover: true,
-            particleHoverFactor: 1,
-            particleBaseSize: 50,
-            sizeRandomness: 1,
-            pixelRatio: window.devicePixelRatio || 1
-        });
-    }
+        const getNextTheme = () => {
+            const isLight = document.documentElement.getAttribute("data-theme") === "light";
+            return isLight ? "dark" : "light";
+        };
 
-    // 1. INIT TEXT SCRAMBLE
-    const titleElements = document.querySelectorAll(".hero-title"); 
-    
-    // REPLACE HERO TITLE "PROGRAMMER" WITH FUZZY TEXT
-    // Target the specific element for "PROGRAMMER"
-    const programmerTitle = document.querySelector(".hero-title.layer2");
-    
-    if(programmerTitle) {
-        // We want to apply the effect TO this element.
-        // The FuzzyText class appends a canvas to the element.
-        // We should ensure the element is visible and has dimensions.
-        
-        new FuzzyText(programmerTitle, {
-            fontSize: 'inherit', // Will take from CSS
-            fontWeight: 900,
-            fontFamily: 'inherit',
-            color: '#ffffff',
-            enableHover: true,
-            baseIntensity: 0,   // INTENSITAS DIAM (0 = Clean, 0.1 = Noise dikit)
-            hoverIntensity: 0.6,// INTENSITAS HOVER (0.5 = Sedang, 0.9 = Rusak Parah)
-            fuzzRange: 10,      // JARAK GESER PIXEL (makin besar makin ambyar)
-            direction: 'horizontal' 
+        const applyTheme = (theme) => {
+            if (theme === "light") {
+                document.documentElement.setAttribute("data-theme", "light");
+                try { localStorage.setItem("theme", "light"); } catch (e) {}
+                return;
+            }
+
+            document.documentElement.removeAttribute("data-theme");
+            try { localStorage.setItem("theme", "dark"); } catch (e) {}
+        };
+
+        const runThemeWipe = async (theme) => {
+            if (!document.startViewTransition || prefersReducedMotion()) {
+                applyTheme(theme);
+                return;
+            }
+
+            const rect = toggle.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            const maxX = Math.max(x, window.innerWidth - x);
+            const maxY = Math.max(y, window.innerHeight - y);
+            const radius = Math.ceil(Math.hypot(maxX, maxY));
+
+            const transition = document.startViewTransition(() => {
+                applyTheme(theme);
+            });
+
+            await transition.ready;
+
+            const clipPath = [
+                `circle(0px at ${x}px ${y}px)`,
+                `circle(${radius}px at ${x}px ${y}px)`,
+            ];
+
+            document.documentElement.animate(
+                {
+                    clipPath: clipPath,
+                },
+                {
+                    duration: 650,
+                    easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+                    pseudoElement: "::view-transition-new(root)",
+                }
+            );
+        };
+
+        const renderToggle = () => {
+            const isLight = document.documentElement.getAttribute("data-theme") === "light";
+            toggle.setAttribute("aria-pressed", isLight ? "true" : "false");
+            toggle.setAttribute("aria-label", isLight ? "Switch to dark mode" : "Switch to light mode");
+            toggle.innerHTML = isLight
+                ? '<iconify-icon icon="lucide:moon" aria-hidden="true"></iconify-icon>'
+                : '<iconify-icon icon="lucide:sun" aria-hidden="true"></iconify-icon>';
+        };
+
+        renderToggle();
+
+        toggle.addEventListener("click", async () => {
+            const next = getNextTheme();
+            await runThemeWipe(next);
+            renderToggle();
         });
     }
 
@@ -312,28 +349,6 @@ if (fpsEl) {
     }, 1000); 
 }
 
-// Glitch effect (Super Optimized)
-const glitchHeaders = document.querySelectorAll('.cyber-glitch'); // Updated selector
-
-function triggerGlitch() {
-    if (Math.random() > 0.85) { 
-        const header = glitchHeaders[Math.floor(Math.random() * glitchHeaders.length)];
-        // Safety check if element exists
-        if (!header) return;
-
-        const x = Math.random() * 6 - 3;
-        const y = Math.random() * 4 - 2;
-        
-        requestAnimationFrame(() => {
-            header.style.transform = `translate(${x}px, ${y}px)`;
-            setTimeout(() => {
-                header.style.transform = 'translate(0, 0)';
-            }, 60);
-        });
-    }
-}
-
-// Check for glitches less frequently
-setInterval(triggerGlitch, 500);
+// Glitch effect disabled for minimal theme.
 
 

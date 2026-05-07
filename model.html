@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Viewer | Portfolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #viewer-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
+            position: relative;
+        }
+
+        /* Cinematic gradient scrim — darkens bottom-left corner where title/desc live.
+           Scrim height is kept to ~35% so it doesn't reach Sketchfab's bottom toolbar zone. */
+        #viewer-container::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Radial vignette anchored at ~82% from top (matching model-info bottom: 80px).
+                   Keeps the dark area centered around the title/desc, not the very bottom corner. */
+                radial-gradient(ellipse 55% 45% at 0% 82%, rgba(0,0,0,0.65) 0%, transparent 100%),
+                /* Thin bottom gradient — just enough to soften the edge, stops at 20% */
+                linear-gradient(to top, rgba(0,0,0,0.35) 0%, transparent 20%);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        #sketchfab-iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .viewer-ui {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .back-btn {
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px 20px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            letter-spacing: 0.1rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            border-radius: 4px;
+        }
+
+        .back-btn:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        /* Top-right UI bar for the Sketchfab link */
+        .viewer-ui-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+        }
+
+        /* "View on Sketchfab" custom button — styled to match the back button
+           but with a subtle Sketchfab brand accent on hover. Hidden by default;
+           shown only when a sketchfab_uid is available (set by renderSketchfab). */
+        .sketchfab-link {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.85);
+            padding: 10px 18px;
+            text-decoration: none;
+            font-size: 0.75rem;
+            letter-spacing: 0.1rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            border-radius: 4px;
+            font-family: 'Inter', sans-serif;
+        }
+        .sketchfab-link svg {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+            flex-shrink: 0;
+        }
+        .sketchfab-link:hover {
+            background: rgba(20, 20, 20, 0.85);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+        }
+        .sketchfab-link:hover svg { opacity: 1; }
+
+        .model-info {
+            position: absolute;
+            /* 80px from bottom clears Sketchfab's ~50-60px toolbar safely */
+            bottom: 80px;
+            left: 30px;
+            max-width: 380px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .model-title {
+            font-size: 1.5rem;
+            margin: 0;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            /* Multi-layer shadow: close sharp shadow for contrast + wide soft glow for depth.
+               Keeps text crisp on any background without inverting colors. */
+            text-shadow:
+                0 1px 2px rgba(0,0,0,1),
+                0 2px 8px rgba(0,0,0,0.9),
+                0 4px 24px rgba(0,0,0,0.7);
+        }
+
+        .model-desc {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.9rem;
+            margin-top: 10px;
+            line-height: 1.5;
+            /* Softer shadow for body text — legible but not as heavy as the title */
+            text-shadow:
+                0 1px 3px rgba(0,0,0,0.95),
+                0 2px 12px rgba(0,0,0,0.8);
+        }
+
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader-bar {
+            width: 200px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loader-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: #fff;
+            transition: width 0.3s ease;
+        }
+
+        .status-text {
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 10px;
+        }
+
+        /* View Angle Strip — positioned on the right side, vertically centered.
+           Avoids overlapping Sketchfab's own bottom-right control bar (gear, fullscreen, etc.).
+           Vertical layout mirrors professional 3D software side panels. */
+        .view-strip {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 10px;
+            border-radius: 14px;
+        }
+        .view-thumb-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        .view-thumb {
+            width: 52px;
+            height: 52px;
+            object-fit: cover;
+            border-radius: 7px;
+            border: 2px solid transparent;
+            opacity: 0.6;
+            transition: border-color 0.2s, opacity 0.2s, transform 0.2s;
+        }
+        .view-thumb:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+            opacity: 1;
+            transform: scale(1.06);
+        }
+        .view-thumb-label {
+            font-size: 0.5rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Lightbox */
+        .lightbox-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.93);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 18px;
+            animation: fadeIn 0.2s ease;
+        }
+        #lightbox-img {
+            max-width: 88vw;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 0 80px rgba(0, 0, 0, 0.8);
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 28px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 8px 18px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.75rem;
+            border-radius: 999px;
+            letter-spacing: 1px;
+            transition: background 0.2s;
+        }
+        .lightbox-close:hover { background: rgba(255,255,255,0.14); }
+        .lightbox-label {
+            font-family: monospace;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="loader-bar"><div id="loader-progress" class="loader-progress"></div></div>
+        <div class="status-text" id="loader-status">SYNCING_ASSETS...</div>
+    </div>
+
+    <div class="viewer-ui">
+        <a href="index.html" class="back-btn">← Back</a>
+    </div>
+
+    <!-- View on Sketchfab button — href and visibility set dynamically by renderSketchfab() -->
+    <div class="viewer-ui-right">
+        <a id="sketchfab-link" class="sketchfab-link" target="_blank" rel="noopener noreferrer">
+            <!-- External link icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            View on Sketchfab
+        </a>
+    </div>
+
+    <div id="viewer-container">
+        <!-- Sketchfab embed or image fallback will be injected here -->
+    </div>
+
+    <!-- View Angle Thumbnail Strip -->
+    <div class="view-strip" id="view-strip"></div>
+
+    <!-- Lightbox Modal -->
+    <div class="lightbox-overlay" id="lightbox" style="display:none;" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="event.stopPropagation(); closeLightbox()">X CLOSE</button>
+        <img id="lightbox-img" src="" alt="Model view">
+        <div id="lightbox-label" class="lightbox-label"></div>
+    </div>
+
+    <div class="model-info">
+        <h1 id="m-title" class="model-title">MODEL_VIEWER</h1>
+        <p id="m-desc" class="model-desc">Loading metadata...</p>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { db } from "./js/firebase-config.js";
+        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        const loaderProgress = document.getElementById('loader-progress');
+        const loaderStatus = document.getElementById('loader-status');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        async function initViewer() {
+            if (!projectId) {
+                loaderStatus.innerText = "ERROR: NO_ID_SPECIFIED";
+                return;
+            }
+
+            try {
+                loaderProgress.style.width = "30%";
+                const docRef = doc(db, "projects", projectId);
+                const docSnap = await getDoc(docRef);
+
+                if (!docSnap.exists()) {
+                    loaderStatus.innerText = "ERROR: PROJECT_NOT_FOUND";
+                    return;
+                }
+
+                const data = docSnap.data();
+                document.getElementById('m-title').innerText = data.title || 'UNTITLED';
+                document.getElementById('m-desc').innerText = data.description || '';
+                loaderProgress.style.width = "60%";
+
+                // Render view angle thumbnails if model_views data exists.
+                const views = data.model_views || {};
+                const viewKeys = ['front','back','left','right','top','bottom'];
+                const availableViews = viewKeys.filter(k => views[k]);
+                const strip = document.getElementById('view-strip');
+
+                if (availableViews.length > 0) {
+                    strip.style.display = 'flex';
+                    strip.innerHTML = availableViews.map(key => `
+                        <div class="view-thumb-container" onclick="openLightbox('${views[key]}', '${key.toUpperCase()} VIEW')">
+                            <img src="${views[key]}" class="view-thumb" alt="${key} view" loading="lazy">
+                            <span class="view-thumb-label">${key}</span>
+                        </div>
+                    `).join('');
+                }
+
+                // Priority: Sketchfab embed > front view image > icon_url fallback.
+                if (data.sketchfab_uid) {
+                    renderSketchfab(data.sketchfab_uid);
+                } else if (views.front) {
+                    renderImageHero(views.front);
+                } else if (data.icon_url) {
+                    renderImageHero(data.icon_url);
+                } else {
+                    loaderStatus.innerText = "ERROR: NO_DISPLAYABLE_CONTENT";
+                }
+
+            } catch (err) {
+                console.error(err);
+                loaderStatus.innerText = "ERROR: " + (err.code || err.message);
+            }
+        }
+
+        function renderImageHero(url) {
+            const container = document.getElementById('viewer-container');
+            container.innerHTML = `<img src="${url}" style="max-height:85vh; max-width:88vw; object-fit:contain; border-radius:8px; box-shadow:0 0 60px rgba(0,0,0,0.6);" alt="Model preview">`;
+            loaderProgress.style.width = "100%";
+            setTimeout(() => {
+                loadingOverlay.style.opacity = "0";
+                setTimeout(() => loadingOverlay.style.display = "none", 500);
+            }, 300);
+        }
+
+        // Lightbox controls (global scope for inline onclick).
+        window.openLightbox = function(imgUrl, label) {
+            document.getElementById('lightbox-img').src   = imgUrl;
+            document.getElementById('lightbox-label').textContent = label;
+            document.getElementById('lightbox').style.display = 'flex';
+        };
+        window.closeLightbox = function() {
+            document.getElementById('lightbox').style.display = 'none';
+            document.getElementById('lightbox-img').src = '';
+        };
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') window.closeLightbox(); });
+
+        function renderSketchfab(uid) {
+            loaderStatus.innerText = "INITIALIZING_SKETCHFAB...";
+            const container = document.getElementById('viewer-container');
+            const iframe = document.createElement('iframe');
+            iframe.id = "sketchfab-iframe";
+            iframe.src = `https://sketchfab.com/models/${uid}/embed?autostart=1&internal=1&tracking=0&ui_ar=0&ui_infos=0&ui_watermark=0`;
+            iframe.allow = "autoplay; fullscreen; xr-spatial-tracking";
+
+            // Show our custom "View on Sketchfab" button and point it at the model page.
+            // We use our own button (ui_watermark=0 hides Sketchfab's built-in one)
+            // so we can control its position and style independently.
+            const sfLink = document.getElementById('sketchfab-link');
+            if (sfLink) {
+                sfLink.href = `https://sketchfab.com/models/${uid}`;
+                sfLink.style.display = 'flex';
+            }
+            
+            iframe.onload = () => {
+                loaderProgress.style.width = "100%";
+                setTimeout(() => {
+                    loadingOverlay.style.opacity = "0";
+                    setTimeout(() => loadingOverlay.style.display = "none", 500);
+                }, 500);
+            };
+
+            container.appendChild(iframe);
+        }
+
+        initViewer();
+    </script>
+</body>
+</html>

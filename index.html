@@ -3,75 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tristan Davin Dakara | Gameplay Systems Architect</title>
-    
-    <!-- Fonts: Rajdhani (Tech/Futuristic) & JetBrains Mono (Code/Brutal) -->
+    <title>Tristan Davin Dakara | Game Developer & Engineer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- CSS -->
-    <link rel="stylesheet" href="style_v3.css">
-    
-    <!-- GSAP (Required for TargetCursor) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem('theme');
+                if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            } catch (e) {}
+        })();
+    </script>
 </head>
-<body>
-    
-    <!-- Background Grid/Noise -->
-    <style>
-        /* Layer Management */
-        body { background-color: #050505; }
-        #bg-canvas, .scanlines, .vignette { z-index: 0; }
-        #particles-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        
-        /* Content Layers */
-        section { position: relative; z-index: 10; }
-    </style>
-    
-    <!-- Background Grid/Noise -->
-    <canvas id="bg-canvas" style="position:fixed; top:0; left:0; z-index:0;"></canvas>
-    <div class="scanlines" style="z-index:2; pointer-events:none;"></div>
-    <div class="vignette" style="z-index:3; pointer-events:none;"></div>
-    <div id="particles-container"></div>
-
-    <!-- UI Overlay overlay -->
-    <div class="ui-frame bottom-right">/// TRISTAN.DEV</div>
-
-    <!-- Navigation -->
-    <nav>
+<body class="page-home">
+    <nav class="site-nav">
         <div class="nav-inner">
-            <div class="logo">TDD<span class="blink">_</span></div>
+            <a class="logo" href="#hero" aria-label="Home">Tristan Davin Dakara</a>
             <ul class="nav-links">
-                <li><a href="#hero" data-text="HOME">HOME</a></li>
-                <li><a href="#about" data-text="ABOUT">ABOUT</a></li>
-                <li><a href="#stack" data-text="STACK">STACK</a></li>
-                <li><a href="#projects" data-text="PROJECTS">PROJECTS</a></li>
-                <li><a href="#contact" data-text="CONTACT">CONTACT</a></li>
+                <li><a href="#projects">Work</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#stack">Services</a></li>
+                <li><a href="#experience">Experience</a></li>
+                <li><a href="#contact">Contact</a></li>
             </ul>
+            <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme" aria-pressed="false"></button>
         </div>
     </nav>
 
     <!-- Hero Section -->
     <section id="hero">
         <div class="container hero-container">
-            <div class="glitch-wrapper">
-                <h1 class="hero-title cyber-glitch" data-text="GAMEPLAY">GAMEPLAY</h1>
-                <h1 class="hero-title layer2" data-text="PROGRAMMER">PROGRAMMER</h1>
-            </div>
-            <p class="hero-subtitle">
-                <span class="accent">></span> TRISTAN DAVIN DAKARA <br>
-                <span class="dim">/// SPECIALIZING IN SYSTEMS ARCHITECTURE, SHADERS & PERFORMANCE</span>
-            </p>
-            
-            <div class="hero-cta">
-                <a href="#projects" class="btn-brutal">
-                    <span class="btn-content">INITIALIZE PROTCOLS</span>
-                    <div class="btn-glitch"></div>
-                </a>
-                <a href="#contact" class="btn-brutal outline">
-                    <span class="btn-content">ESTABLISH COMMS</span>
-                </a>
+            <div class="hero-grid">
+                <div class="hero-main">
+                    <div class="eyebrow">Game Engineering</div>
+                    <h1 class="hero-title">I build performant game architectures and production-ready tools.</h1>
+                    <p class="hero-subtitle">From modular logic systems to render pipeline optimization, I help teams ship features that feel good and run fast.</p>
+
+                    <div class="hero-cta">
+                        <a href="#projects" class="btn-brutal">Selected work</a>
+                        <a href="#contact" class="btn-brutal outline">Contact</a>
+                    </div>
+                </div>
+
+                <aside class="hero-aside" aria-label="Quick info">
+                    <div class="hero-aside-row">
+                        <div class="hero-aside-label">Role</div>
+                        <div class="hero-aside-value">Gameplay Systems Developer</div>
+                    </div>
+                    <div class="hero-aside-row">
+                        <div class="hero-aside-label">Focus</div>
+                        <div class="hero-aside-value">Performance, architecture, shaders</div>
+                    </div>
+                    <div class="hero-aside-row">
+                        <div class="hero-aside-label">Availability</div>
+                        <div class="hero-aside-value">Open to contracts</div>
+                    </div>
+                </aside>
             </div>
         </div>
     </section>
@@ -80,16 +71,15 @@
     <section id="about">
         <div class="container section-layout">
             <div class="section-title">
-                <h2>01 // ABOUT_ME</h2>
+                <div class="section-kicker">About</div>
+                <h2>Technical, production-minded development.</h2>
                 <div class="line"></div>
             </div>
             <div class="about-content">
-                <p class="terminal-text">
-                    > Tristan Davin Dakara<br><br>
-                    I am a Technical Game Developer focused on building robust gameplay systems and immersive mechanics. I don't just write code; I engineer experiences. My expertise lies in bridging the gap between low-level engine architecture and high-level design intent.
-                    <br><br>
-                    Currently, I focus on optimizing render pipelines and creating modular interaction systems for AAA-style projects.
-                </p>
+                <div class="terminal-text">
+                    <p>I’m Tristan Davin Dakara, a technical game developer focused on robust gameplay systems and production-ready engineering. I bridge low-level engine constraints with high-level design intent to ship features that feel good and run fast.</p>
+                    <p>My current focus is performance-driven architecture, render pipeline optimization, and modular interaction systems designed for real team workflows.</p>
+                </div>
                 <div class="stats-grid">
                     <div class="stat-box">
                         <h3>1+</h3>
@@ -112,7 +102,8 @@
     <section id="stack">
         <div class="container section-layout">
             <div class="section-title">
-                <h2>02 // TECH_STACK</h2>
+                <div class="section-kicker">Services</div>
+                <h2>What I can deliver.</h2>
                 <div class="line"></div>
             </div>
             
@@ -127,7 +118,8 @@
     <section id="experience">
         <div class="container section-layout">
             <div class="section-title">
-                <h2>03 // LOGS</h2>
+                <div class="section-kicker">Experience</div>
+                <h2>Shipped work and impact.</h2>
                 <div class="line"></div>
             </div>
                         <div class="timeline" id="experience-container">
@@ -141,12 +133,15 @@
         <div class="container section-layout">
             <div class="section-title">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2>04 // DEPLOYMENTS</h2>
-                    <select id="project-filter" style="background:rgba(0,0,0,0.5); border:1px solid var(--accent); color:var(--accent); padding:5px 15px; font-family:var(--font-code); cursor:pointer;">
-                        <option value="ALL">/// ALL_SYSTEMS</option>
+                    <div>
+                        <div class="section-kicker">Work</div>
+                        <h2>Selected projects.</h2>
+                    </div>
+                    <select id="project-filter">
+                        <option value="ALL">All</option>
                         <option value="Game">GAME</option>
-                        <option value="Model">MODEL</option>
-                        <option value="Project">PROJECT</option>
+                        <option value="3D Model">3D MODEL</option>
+                        <option value="Web">WEB</option>
                     </select>
                 </div>
                 <div class="line"></div>
@@ -164,22 +159,21 @@
     <!-- Contact -->
     <section id="contact">
         <div class="container section-layout centered">
-            <h2>READY TO DEPLOY?</h2>
-            <p>AVAILABLE FOR CONTRACTS AND FULL-TIME ROLES</p>
+            <h2>Let’s build something.</h2>
+            <p>Available for contracts and full-time roles.</p>
             
             <a href="mailto:tristandavind@gmail.com" class="big-mail-link">
                 tristandavind@gmail.com
             </a>
             
             <div class="social-grid">
-                <a href="#">GITHUB</a>
-                <a href="#">LINKEDIN</a>
-                <a href="#">ITCH.IO</a>
-                <a href="#">ARTSTATION</a>
+                <a href="https://github.com/TDD131" target="_blank" rel="noopener noreferrer">GITHUB</a>
+                <a href="https://www.instagram.com/im_allergic_to_lactose/" target="_blank" rel="noopener noreferrer">INSTAGRAM</a>
+                <a href="https://discordapp.com/users/811846482822561802" target="_blank" rel="noopener noreferrer">DISCORD</a>
             </div>
             
             <footer>
-                <p>COPYRIGHT 2026 TRISTAN DAVIN DAKARA</p>
+                <p>© 2026 TRISTAN DAVIN DAKARA</p>
             </footer>
         </div>
     </section>

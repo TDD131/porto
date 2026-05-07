@@ -1,10 +1,15 @@
-import { auth, db } from "./firebase-config.js";
+import { auth, db, storage } from "./firebase-config.js";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-// CLOUDINARY CONFIG (USER MUST FILL THIS)
-const CLOUD_NAME = "dc1avvowu"; // Ganti dengan Cloud Name kamu
-const UPLOAD_PRESET = "TIDIDI_PORTO"; // Ganti dengan Upload Preset (Unsigned)
+// CLOUDINARY CONFIG - Session Storage
+let CLOUD_NAME = sessionStorage.getItem('cloudinary_name') || '';
+let UPLOAD_PRESET = sessionStorage.getItem('cloudinary_preset') || '';
+
+// API Keys - Session Storage
+let GEMINI_API_KEY = sessionStorage.getItem('gemini_key') || '';
+let SKETCHFAB_API_TOKEN = sessionStorage.getItem('sketchfab_key') || '';
 
 // DOM Elements
 const loginPanel = document.getElementById("login-panel");
@@ -15,95 +20,660 @@ const addProjectForm = document.getElementById("add-project-form");
 const projectList = document.getElementById("admin-project-list");
 const loginMsg = document.getElementById("login-msg");
 const loader = document.getElementById("upload-loader");
+const aiBtn = document.getElementById("btn-ai-desc");
+const aiStatus = document.getElementById("ai-desc-status");
+
+// --- INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', () => {
+    const keyInput = document.getElementById('gemini-api-key');
+    const sfKeyInput = document.getElementById('sketchfab-api-token');
+    const cnameInput = document.getElementById('cloudinary-name');
+    const cpresetInput = document.getElementById('cloudinary-preset');
+    
+    if (keyInput && GEMINI_API_KEY) {
+        keyInput.value = GEMINI_API_KEY;
+        // Check cached validation status instead of re-validating
+        const cachedStatus = sessionStorage.getItem('gemini_key_valid');
+        const statusEl = document.getElementById('gemini-status');
+        if (cachedStatus === 'valid') {
+            statusEl.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID (cached)</span>';
+        } else if (cachedStatus === 'invalid') {
+            statusEl.innerHTML = '<span style="color: #ff4444;">✗ INVALID (cached)</span>';
+        }
+    }
+    
+    if (sfKeyInput && SKETCHFAB_API_TOKEN) {
+        sfKeyInput.value = SKETCHFAB_API_TOKEN;
+        // Check cached validation status instead of re-validating
+        const cachedStatus = sessionStorage.getItem('sketchfab_key_valid');
+        const statusEl = document.getElementById('sketchfab-status');
+        if (cachedStatus === 'valid') {
+            statusEl.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID (cached)</span>';
+        } else if (cachedStatus === 'invalid') {
+            statusEl.innerHTML = '<span style="color: #ff4444;">✗ INVALID (cached)</span>';
+        }
+    }
+    
+    if (cnameInput && CLOUD_NAME) cnameInput.value = CLOUD_NAME;
+    if (cpresetInput && UPLOAD_PRESET) cpresetInput.value = UPLOAD_PRESET;
+
+    // Auto-save on input (no validation)
+    keyInput?.addEventListener('input', (e) => {
+        GEMINI_API_KEY = e.target.value;
+        sessionStorage.setItem('gemini_key', GEMINI_API_KEY);
+        // Clear cached validation when key changes
+        sessionStorage.removeItem('gemini_key_valid');
+        document.getElementById('gemini-status').innerHTML = '';
+        // Remove error message if exists
+        const configItem = e.target.closest('.config-item');
+        const existingError = configItem?.querySelector('.api-error-msg');
+        if (existingError) existingError.remove();
+    });
+
+    sfKeyInput?.addEventListener('input', (e) => {
+        SKETCHFAB_API_TOKEN = e.target.value;
+        sessionStorage.setItem('sketchfab_key', SKETCHFAB_API_TOKEN);
+        // Clear cached validation when key changes
+        sessionStorage.removeItem('sketchfab_key_valid');
+        document.getElementById('sketchfab-status').innerHTML = '';
+        // Remove error message if exists
+        const configItem = e.target.closest('.config-item');
+        const existingError = configItem?.querySelector('.api-error-msg');
+        if (existingError) existingError.remove();
+    });
+
+    cnameInput?.addEventListener('input', (e) => {
+        CLOUD_NAME = e.target.value;
+        sessionStorage.setItem('cloudinary_name', CLOUD_NAME);
+    });
+
+    cpresetInput?.addEventListener('input', (e) => {
+        UPLOAD_PRESET = e.target.value;
+        sessionStorage.setItem('cloudinary_preset', UPLOAD_PRESET);
+    });
+
+    // Initialize the type-switch and per-slot upload logic after DOM is ready.
+    setupTypeSwitch();
+    initModelViewSlots();
+});
+
+// --- TYPE SWITCH: Shows/hides asset panels based on project category ---
+function handleTypeSwitch() {
+    const is3D = this.value === '3D Model';
+    const stdPanel = document.getElementById('standard-asset-panel');
+    const mdlPanel = document.getElementById('model3d-asset-panel');
+    const iconInput = document.getElementById('p-icon');
+    const linkInput = document.getElementById('p-link');
+
+    if (stdPanel) stdPanel.style.display = is3D ? 'none' : 'block';
+    if (mdlPanel) mdlPanel.style.display = is3D ? 'block' : 'none';
+
+    // Toggle required attrs to prevent HTML5 validation from blocking hidden fields.
+    if (iconInput) iconInput.required = false;
+    if (linkInput) linkInput.required = !is3D;
+}
+
+function setupTypeSwitch() {
+    const typeSelect = document.getElementById('p-type');
+    if (!typeSelect) return;
+    typeSelect.addEventListener('change', handleTypeSwitch);
+    // Run once on init to set correct panel state based on default value.
+    handleTypeSwitch.call(typeSelect);
+}
+
+// --- API VALIDATION ---
+// Make functions globally accessible for inline onclick handlers
+window.validateGemini = async function(key) {
+    const status = document.getElementById('gemini-status');
+    const inputRow = document.getElementById('gemini-api-key').parentElement;
+    const configItem = inputRow.closest('.config-item') || inputRow;
+    
+    // Remove existing error message
+    const existingError = configItem.querySelector('.api-error-msg');
+    if (existingError) existingError.remove();
+    
+    if (!key) { status.innerHTML = ''; return; }
+    status.innerHTML = '<span style="color: #555;">CHECKING...</span>';
+    
+    try {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': key 
+            },
+            body: JSON.stringify({ contents: [{ parts: [{ text: 'hi' }] }] })
+        });
+        
+        if (resp.ok) {
+            status.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID</span>';
+            sessionStorage.setItem('gemini_key_valid', 'valid');
+        } else {
+            const errBody = await resp.json().catch(() => ({}));
+            console.error("Gemini Validation Error Details:", JSON.stringify(errBody, null, 2));
+            
+            let errorMsg = 'Invalid API key';
+            if (resp.status === 429) {
+                errorMsg = 'Rate limit exceeded. Try again later or check your quota.';
+            } else if (errBody.error?.message) {
+                errorMsg = errBody.error.message;
+            }
+            
+            status.innerHTML = `<span style="color: #ff4444;">✗ INVALID (${resp.status})</span>`;
+            sessionStorage.setItem('gemini_key_valid', 'invalid');
+            
+            // Add error message below input
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'api-error-msg';
+            errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
+            errorDiv.textContent = errorMsg;
+            configItem.appendChild(errorDiv);
+        }
+    } catch (e) { 
+        console.error("Gemini Connection Error:", e);
+        status.innerHTML = '<span style="color: #ff4444;">ERROR</span>';
+        sessionStorage.setItem('gemini_key_valid', 'invalid');
+        
+        // Add error message below input
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'api-error-msg';
+        errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
+        errorDiv.textContent = 'Connection error. Check your network.';
+        configItem.appendChild(errorDiv);
+    }
+}
+
+window.validateSketchfab = async function(token) {
+    const status = document.getElementById('sketchfab-status');
+    const inputRow = document.getElementById('sketchfab-api-token').parentElement;
+    const configItem = inputRow.closest('.config-item') || inputRow;
+    
+    // Remove existing error message
+    const existingError = configItem.querySelector('.api-error-msg');
+    if (existingError) existingError.remove();
+    
+    if (!token) { status.innerHTML = ''; return; }
+    status.innerHTML = '<span style="color: #555;">CHECKING...</span>';
+    
+    try {
+        const resp = await fetch('https://api.sketchfab.com/v3/me', {
+            headers: { 'Authorization': `Token ${token}` }
+        });
+        if (resp.ok) {
+            status.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID</span>';
+            sessionStorage.setItem('sketchfab_key_valid', 'valid');
+        } else {
+            status.innerHTML = '<span style="color: #ff4444;">✗ INVALID</span>';
+            sessionStorage.setItem('sketchfab_key_valid', 'invalid');
+            
+            // Add error message below input
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'api-error-msg';
+            errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
+            errorDiv.textContent = 'Invalid token or insufficient permissions.';
+            configItem.appendChild(errorDiv);
+        }
+    } catch (e) { 
+        status.innerHTML = '<span style="color: #ff4444;">ERROR</span>'; 
+        sessionStorage.setItem('sketchfab_key_valid', 'invalid');
+        
+        // Add error message below input
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'api-error-msg';
+        errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
+        errorDiv.textContent = 'Connection error. Check your network.';
+        configItem.appendChild(errorDiv);
+    }
+}
+
+// --- PER-SLOT IMAGE UPLOAD: Wires a single view-angle slot to auto-upload on file selection ---
+/**
+ * Sets up a single view angle upload slot.
+ * On file change: shows local preview immediately, uploads to Cloudinary, auto-fills URL input,
+ * and if this is the 'front' slot, also auto-fills the hidden p-icon field for Firestore.
+ * @param {string} angleKey - One of: front, back, left, right, top, bottom
+ */
+function setupModelViewSlot(angleKey) {
+    const fileInput   = document.getElementById(`file-${angleKey}`);
+    const urlInput    = document.getElementById(`url-${angleKey}`);
+    const statusEl   = document.getElementById(`status-${angleKey}`);
+    const previewEl  = document.getElementById(`preview-${angleKey}`);
+    if (!fileInput || !urlInput) return;
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        // Immediately show local blob preview before upload completes.
+        previewEl.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="preview">`;
+        statusEl.textContent  = 'UPLOADING...';
+        statusEl.className    = 'slot-status uploading';
+        fileInput.disabled    = true;
+
+        try {
+            const cloudUrl = await uploadToCloudinary(file);
+            urlInput.value        = cloudUrl;
+            // Replace blob preview with stable Cloudinary URL.
+            previewEl.innerHTML = `<img src="${cloudUrl}" alt="preview">`;
+            statusEl.textContent  = 'UPLOADED';
+            statusEl.className    = 'slot-status done';
+
+            // Auto-set icon_url from front view for Firestore thumbnail.
+            if (angleKey === 'front') {
+                const iconInput = document.getElementById('p-icon');
+                if (iconInput) iconInput.value = cloudUrl;
+            }
+        } catch (err) {
+            statusEl.textContent = 'FAILED: ' + err.message;
+            statusEl.className   = 'slot-status error';
+        } finally {
+            fileInput.disabled = false;
+        }
+    });
+}
+
+function initModelViewSlots() {
+    ['front', 'back', 'left', 'right', 'top', 'bottom'].forEach(setupModelViewSlot);
+}
+
+// --- AI GENERATION ---
+async function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+    });
+}
+
+aiBtn?.addEventListener("click", async () => {
+    if (!GEMINI_API_KEY) {
+        alert("Gemini API Key is required!");
+        return;
+    }
+
+    const title    = document.getElementById("p-title").value;
+    const type     = document.getElementById("p-type").value;
+    // Read stack from pill picker; fall back to hidden input for edge cases.
+    const stackArr = getSelectedStack();
+    const stack    = stackArr.length > 0 ? stackArr.join(", ") : "Unknown";
+    // For 3D Model, use the front-view file for image analysis; otherwise use icon file.
+    const iconFile = type === "3D Model"
+        ? document.getElementById("file-front")?.files[0]
+        : document.getElementById("p-icon-file").files[0];
+
+    if (!title) {
+        alert("Please enter a project title first!");
+        return;
+    }
+
+    aiBtn.disabled = true;
+    aiStatus.textContent = "AI IS THINKING...";
+    aiStatus.className = "ai-status-msg";
+
+    try {
+        let prompt = `Write a professional, concise, and engaging description for a portfolio project.
+Title: ${title}
+Category: ${type}
+Tech Stack: ${stack}
+
+The description should be briefly highlighting the core features and your role. Use professional tone. Output ONLY the description text, no markdown, no quotes.`;
+
+        if (type === "3D Model") {
+            prompt += "\nFocus on the visual style, geometry, and craftsmanship of the 3D model.";
+        }
+
+        const contents = [{
+            parts: [{ text: prompt }]
+        }];
+
+        if (iconFile) {
+            aiStatus.textContent = "AI IS ANALYZING IMAGE...";
+            const base64Data = await fileToBase64(iconFile);
+            contents[0].parts.push({
+                inline_data: {
+                    mime_type: iconFile.type,
+                    data: base64Data
+                }
+            });
+            prompt += "\nBased on the attached image, describe the visual style accurately.";
+            contents[0].parts[0].text = prompt; // Update text part with more context
+        }
+
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_API_KEY
+            },
+            body: JSON.stringify({ contents })
+        });
+
+        const data = await resp.json();
+        const aiText = data.candidates[0].content.parts[0].text;
+
+        document.getElementById("p-desc").value = aiText.trim();
+        aiStatus.textContent = "DONE ✓";
+        aiStatus.className = "ai-status-msg success";
+    } catch (err) {
+        console.error("AI Error:", err);
+        aiStatus.textContent = "AI FAILED";
+        aiStatus.className = "ai-status-msg error";
+    } finally {
+        aiBtn.disabled = false;
+    }
+});
 
 // --- AUTHENTICATION ---
-
-// Monitor Auth State
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // User is signed in
-        console.log("Logged in as:", user.email);
         loginPanel.style.display = "none";
         dashboard.style.display = "block";
-        
-        // Start Listening to Projects
         subscribeToProjects();
+        subscribeToExperience();
+        subscribeToLogs();
+        populateStackPicker(); // Populate tech stack pills from DB on login.
     } else {
-        // User is signed out
         loginPanel.style.display = "block";
         dashboard.style.display = "none";
     }
 });
 
-// Login Function
-loginForm.addEventListener("submit", async (e) => {
+// --- STACK PICKER: Multi-select dropdown with checkboxes ---
+/**
+ * Populates the multi-select dropdown with tech stack options
+ */
+function populateStackPicker() {
+    const dropdown = document.getElementById('p-stack-dropdown');
+    const trigger = document.getElementById('p-stack-trigger');
+    const optionsContainer = document.getElementById('p-stack-options');
+    const countDisplay = document.getElementById('p-stack-selected-count');
+    
+    if (!dropdown || !trigger || !optionsContainer || !countDisplay) return;
+
+    // Toggle dropdown open/close
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('open');
+        optionsContainer.style.display = dropdown.classList.contains('open') ? 'block' : 'none';
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target)) {
+            dropdown.classList.remove('open');
+            optionsContainer.style.display = 'none';
+        }
+    });
+
+    // Populate options from Firestore
+    const q = query(collection(db, 'tech_stack'), orderBy('name'));
+    onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+            optionsContainer.innerHTML = '<div class="dropdown-option" style="cursor: default;">No modules available</div>';
+            return;
+        }
+
+        // Get currently selected items
+        const selectedItems = getSelectedStack();
+
+        optionsContainer.innerHTML = '';
+        snapshot.forEach(docSnap => {
+            const techName = docSnap.data().name;
+            const isSelected = selectedItems.includes(techName);
+
+            const option = document.createElement('div');
+            option.className = 'dropdown-option' + (isSelected ? ' selected' : '');
+            option.innerHTML = `
+                <input type="checkbox" ${isSelected ? 'checked' : ''} value="${techName}">
+                <span>${techName}</span>
+            `;
+
+            // Handle checkbox click
+            const checkbox = option.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+                updateSelectedCount();
+            });
+
+            // Handle option click (toggle checkbox)
+            option.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    if (checkbox.checked) {
+                        option.classList.add('selected');
+                    } else {
+                        option.classList.remove('selected');
+                    }
+                    updateSelectedCount();
+                }
+            });
+
+            optionsContainer.appendChild(option);
+        });
+    });
+
+    function updateSelectedCount() {
+        const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]:checked');
+        const count = checkboxes.length;
+        countDisplay.textContent = count === 0 ? '0 selected' : `${count} selected`;
+    }
+}
+
+/**
+ * Reads all currently-selected checkboxes from the multi-select dropdown
+ * @returns {string[]} Array of selected tech stack names
+ */
+function getSelectedStack() {
+    const optionsContainer = document.getElementById('p-stack-options');
+    if (!optionsContainer) return [];
+    
+    const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+/**
+ * Populates multi-select dropdown for edit form with pre-selected state
+ * @param {string} projectId - The project ID for unique selector
+ * @param {string[]} selectedStack - Array of already selected tech stack items
+ */
+function populateEditStackPicker(projectId, selectedStack) {
+    const dropdown = document.getElementById(`edit-stack-dropdown-${projectId}`);
+    const trigger = document.getElementById(`edit-stack-trigger-${projectId}`);
+    const optionsContainer = document.getElementById(`edit-stack-options-${projectId}`);
+    const countDisplay = document.getElementById(`edit-stack-selected-count-${projectId}`);
+    
+    if (!dropdown || !trigger || !optionsContainer || !countDisplay) return;
+
+    // Toggle dropdown open/close
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('open');
+        optionsContainer.style.display = dropdown.classList.contains('open') ? 'block' : 'none';
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target)) {
+            dropdown.classList.remove('open');
+            optionsContainer.style.display = 'none';
+        }
+    });
+
+    // Populate options from Firestore
+    const q = query(collection(db, 'tech_stack'), orderBy('name'));
+    onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+            optionsContainer.innerHTML = '<div class="dropdown-option" style="cursor: default;">No modules available</div>';
+            return;
+        }
+
+        optionsContainer.innerHTML = '';
+        snapshot.forEach(docSnap => {
+            const techName = docSnap.data().name;
+            const isSelected = selectedStack.includes(techName);
+
+            const option = document.createElement('div');
+            option.className = 'dropdown-option' + (isSelected ? ' selected' : '');
+            option.innerHTML = `
+                <input type="checkbox" ${isSelected ? 'checked' : ''} value="${techName}">
+                <span>${techName}</span>
+            `;
+
+            // Handle checkbox click
+            const checkbox = option.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+                updateSelectedCount();
+            });
+
+            // Handle option click (toggle checkbox)
+            option.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    if (checkbox.checked) {
+                        option.classList.add('selected');
+                    } else {
+                        option.classList.remove('selected');
+                    }
+                    updateSelectedCount();
+                }
+            });
+
+            optionsContainer.appendChild(option);
+        });
+
+        // Initial count update
+        updateSelectedCount();
+    });
+
+    function updateSelectedCount() {
+        const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]:checked');
+        const count = checkboxes.length;
+        countDisplay.textContent = count === 0 ? '0 selected' : `${count} selected`;
+    }
+}
+
+/**
+ * Gets selected checkboxes from edit form multi-select dropdown
+ * @param {string} projectId - The project ID for unique selector
+ * @returns {string[]} Array of selected tech stack names
+ */
+function getSelectedEditStack(projectId) {
+    const optionsContainer = document.getElementById(`edit-stack-options-${projectId}`);
+    if (!optionsContainer) return [];
+    
+    const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+loginForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
-    
     loginMsg.textContent = "AUTHENTICATING...";
-    loginMsg.className = "status-msg";
-
     try {
         await signInWithEmailAndPassword(auth, email, password);
         loginMsg.textContent = "ACCESS GRANTED";
-        loginMsg.className = "status-msg success";
     } catch (error) {
-        console.error("Login Error:", error);
         loginMsg.textContent = "ACCESS DENIED: " + error.code;
-        loginMsg.className = "status-msg error";
     }
 });
 
-// Logout Function
-logoutBtn.addEventListener("click", async () => {
-    try {
-        await signOut(auth);
-        console.log("Logged out");
-    } catch (error) {
-        console.error("Logout Error:", error);
-    }
+logoutBtn?.addEventListener("click", async () => {
+    await signOut(auth);
 });
 
 // --- TAB NAVIGATION ---
 document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-        // Remove active class
         document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
         document.querySelectorAll(".admin-section").forEach(s => s.style.display = "none");
-        
-        // Add active state
         btn.classList.add("active");
         document.getElementById(btn.dataset.target).style.display = "block";
-
-        // Lazy Load Data based on Tab
         if(btn.dataset.target === "section-stack") loadStack();
     });
 });
 
+// --- SKETCHFAB UPLOAD CORE ---
+async function handleSketchfabUpload(file, modelName, description) {
+    console.log('=== SKETCHFAB UPLOAD DEBUG ===');
+    console.log('Token exists:', !!SKETCHFAB_API_TOKEN);
+    console.log('Token length:', SKETCHFAB_API_TOKEN?.length);
+    console.log('File:', file);
+    console.log('File name:', file?.name);
+    console.log('File size:', file?.size, 'bytes');
+    console.log('File type:', file?.type);
+    console.log('Model name:', modelName);
+    console.log('Description:', description);
+
+    if (!SKETCHFAB_API_TOKEN) throw new Error("Sketchfab Token is missing!");
+    
+    const formData = new FormData();
+    formData.append('modelFile', file);
+    formData.append('name', modelName);
+    formData.append('description', description);
+    formData.append('isPublished', true);
+
+    console.log('FormData entries:');
+    for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value);
+    }
+
+    console.log('Sending request to Sketchfab API...');
+    const response = await fetch('https://api.sketchfab.com/v3/models', {
+        method: 'POST',
+        headers: { 'Authorization': `Token ${SKETCHFAB_API_TOKEN}` },
+        body: formData
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response OK:', response.ok);
+
+    if (!response.ok) {
+        const errData = await response.json();
+        console.log('Error data from Sketchfab:', errData);
+        
+        // Sketchfab API errors can have multiple formats
+        let errorMsg = 'Unknown Sketchfab error';
+        if (errData.detail) {
+            errorMsg = errData.detail;
+        } else if (errData.errors && Array.isArray(errData.errors)) {
+            errorMsg = errData.errors.map(e => e.message || e).join(', ');
+        } else if (typeof errData === 'object') {
+            errorMsg = JSON.stringify(errData);
+        }
+        console.error('Final error message:', errorMsg);
+        throw new Error(`Sketchfab Error (${response.status}): ${errorMsg}`);
+    }
+
+    const data = await response.json();
+    console.log('Success! Model UID:', data.uid);
+    console.log('=== END SKETCHFAB UPLOAD DEBUG ===');
+    return data.uid; // Return the model UID
+}
+
 // --- DATABASE OPERATIONS ---
 
-// 1. PROJECTS LISTENER
-let unsubscribeProjects;
 function subscribeToProjects() {
-    if (unsubscribeProjects) unsubscribeProjects();
     const q = query(collection(db, "projects"), orderBy("created_at", "desc"));
-    unsubscribeProjects = onSnapshot(q, (snapshot) => {
+    onSnapshot(q, (snapshot) => {
         projectList.innerHTML = "";
-        if (snapshot.empty) {
-            projectList.innerHTML = "<p style='text-align:center; color:#555;'>/// DATABASE_EMPTY</p>";
-            return;
-        }
-        snapshot.forEach((doc) => {
-            renderProjectItem(doc.id, doc.data());
-        });
+        snapshot.forEach((doc) => renderProjectItem(doc.id, doc.data()));
     });
 }
 
 function renderProjectItem(id, data) {
     const item = document.createElement("div");
     item.className = "project-item";
-    // Modified structure to allow stacking the edit form below
     item.style.flexDirection = "column"; 
     item.style.alignItems = "stretch";
 
@@ -125,21 +695,15 @@ function renderProjectItem(id, data) {
     `;
 
     item.querySelector(".btn-delete").addEventListener("click", () => deleteItem("projects", id));
-    
-    // Attach Inline Edit Listener
-    item.querySelector(".btn-edit-project").addEventListener("click", () => {
-        toggleEditProject(id, data);
-    });
-
+    item.querySelector(".btn-edit-project").addEventListener("click", () => toggleEditProject(id, data));
     projectList.appendChild(item);
 }
 
-// INLINE EDIT FUNCTION
 function toggleEditProject(id, data) {
     const slot = document.getElementById(`edit-slot-${id}`);
     if (slot.style.display === "block") {
         slot.style.display = "none";
-        slot.innerHTML = ""; // Clear to save memory
+        slot.innerHTML = "";
         return;
     }
 
@@ -157,16 +721,8 @@ function toggleEditProject(id, data) {
                      <label>TYPE / CATEGORY</label>
                      <select class="edit-p-type" style="height:50px; width:100%; background:#050505; border:1px solid var(--text-dim); color:white;">
                         <option value="Game" ${data.type === 'Game' ? 'selected' : ''}>Game</option>
-                        <option value="Model" ${data.type === 'Model' ? 'selected' : ''}>Model</option>
-                        <option value="Project" ${data.type === 'Project' ? 'selected' : ''}>Project</option>
-                     </select>
-                </div>
-                 <div>
-                     <label>STATUS</label>
-                     <select class="edit-p-status" style="height:50px; width:100%; background:#050505; border:1px solid var(--text-dim); color:white;">
-                        <option value="Working" ${data.status === 'Working' ? 'selected' : ''}>Working</option>
-                        <option value="Completed" ${data.status === 'Completed' ? 'selected' : ''}>Completed</option>
-                        <option value="Discontinue" ${data.status === 'Discontinue' ? 'selected' : ''}>Discontinue</option>
+                        <option value="3D Model" ${data.type === '3D Model' ? 'selected' : ''}>3D Model</option>
+                        <option value="Web" ${data.type === 'Web' ? 'selected' : ''}>Web</option>
                      </select>
                 </div>
             </div>
@@ -174,23 +730,36 @@ function toggleEditProject(id, data) {
             <label>DESCRIPTION</label>
             <textarea class="edit-p-desc" rows="3" required>${data.description}</textarea>
 
-            <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
-                <div>
-                    <label>ICON (CHANGE?)</label>
-                    <input type="text" class="edit-p-icon" value="${data.icon_url || ''}" placeholder="https://...">
-                    <input type="file" class="edit-p-icon-file" accept="image/*" style="font-size: 0.8rem;">
-                </div>
-            </div>
-
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
-                    <label>TECH STACK</label>
-                    <input type="text" class="edit-p-stack" value="${data.stack.join(", ")}" required>
+                    <label>SKETCHFAB UID (3D ONLY)</label>
+                    <input type="text" class="edit-p-sfuid" value="${data.sketchfab_uid || ''}" placeholder="uid_from_sketchfab">
+                </div>
+                            </div>
+
+             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>ICON URL</label>
+                    <input type="text" class="edit-p-icon" value="${data.icon_url || ''}" placeholder="https://...">
                 </div>
                 <div>
-                    <label>LINK / URL</label>
-                    <input type="text" class="edit-p-link" value="${data.link}" required>
+                    <label>TECH STACK <span style="color: var(--text-dim); font-weight: 400;">(Multi-select dropdown)</span></label>
+                    <div class="multi-select-dropdown" id="edit-stack-dropdown-${id}">
+                        <div class="dropdown-trigger" id="edit-stack-trigger-${id}">
+                            <span id="edit-stack-selected-count-${id}">0 selected</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-options" id="edit-stack-options-${id}" style="display: none;">
+                            <!-- Options populated by JS -->
+                        </div>
+                    </div>
+                    <input type="text" class="edit-p-stack" style="display:none;" value="${(data.stack || []).join(',')}" required>
                 </div>
+            </div>
+            
+            <div style="margin-top:20px;">
+                <label>LINK / URL</label>
+                <input type="text" class="edit-p-link" value="${data.link || '#'}" required>
             </div>
             
             <div style="margin-top:20px; display:flex; gap:10px;">
@@ -200,7 +769,9 @@ function toggleEditProject(id, data) {
         </form>
     `;
 
-    // Attach Submit Handler for THIS specific form
+    // Populate pills for edit form
+    populateEditStackPicker(id, data.stack || []);
+    
     const form = slot.querySelector("form");
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -209,34 +780,19 @@ function toggleEditProject(id, data) {
         btn.disabled = true;
 
         try {
-            // Check for new file upload
-            const iconFile = form.querySelector(".edit-p-icon-file").files[0];
-            let iconUrl = form.querySelector(".edit-p-icon").value;
-
-            if (iconFile) {
-                btn.innerText = "UPLOADING...";
-                iconUrl = await uploadToCloudinary(iconFile);
-            }
-
             const updates = {
                 title: form.querySelector(".edit-p-title").value,
                 type: form.querySelector(".edit-p-type").value,
-                status: form.querySelector(".edit-p-status").value,
                 description: form.querySelector(".edit-p-desc").value,
-                stack: form.querySelector(".edit-p-stack").value.split(",").map(s => s.trim().toUpperCase()),
+                stack: getSelectedEditStack(id),
                 link: form.querySelector(".edit-p-link").value,
-                icon_url: iconUrl
+                icon_url: form.querySelector(".edit-p-icon").value,
+                sketchfab_uid: form.querySelector(".edit-p-sfuid").value
             };
-
             await setDoc(doc(db, "projects", id), updates, { merge: true });
-            
             alert("PROJECT UPDATED");
             slot.style.display = "none";
-            slot.innerHTML = "";
-        } catch (err) {
-            alert("ERROR: " + err.message);
-            console.error(err);
-        }
+        } catch (err) { alert("ERROR: " + err.message); }
         btn.disabled = false;
         btn.innerText = "SAVE CHANGES";
     });
@@ -245,16 +801,10 @@ function toggleEditProject(id, data) {
 // 2. TECH STACK
 function loadStack() {
     const list = document.getElementById("admin-stack-list");
-    if(!list) return;
-
     const q = query(collection(db, "tech_stack"), orderBy("category"));
-    
     onSnapshot(q, (snapshot) => {
         list.innerHTML = "";
-        snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            renderStackItem(docSnap.id, data, list);
-        });
+        snapshot.forEach(docSnap => renderStackItem(docSnap.id, docSnap.data(), list));
     });
 }
 
@@ -263,140 +813,62 @@ function renderStackItem(id, data, list) {
     item.className = "project-item";
     item.style.flexDirection = "column";
     item.style.alignItems = "stretch";
-    
     item.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <h3>// ${data.name}</h3>
-                <p>${data.category} | READY</p>
-            </div>
+            <div><h3>// ${data.name}</h3><p>${data.category} | READY</p></div>
             <div style="display:flex; gap:10px;">
-                <button class="btn-edit-stack btn-edit" data-id="${id}">EDIT</button>
                 <button class="btn-delete" data-id="${id}" data-col="tech_stack">DELETE</button>
             </div>
         </div>
-        <div class="edit-slot" id="edit-slot-stack-${id}" style="display:none; margin-top:20px; border-top:1px dashed #333; padding-top:20px;"></div>
     `;
     item.querySelector(".btn-delete").addEventListener("click", () => deleteItem("tech_stack", id));
-    
-    // Attach Inline Edit Listener
-    item.querySelector(".btn-edit-stack").addEventListener("click", () => {
-        toggleEditStack(id, data);
-    });
-    
     list.appendChild(item);
 }
 
-function toggleEditStack(id, data) {
-    const slot = document.getElementById(`edit-slot-stack-${id}`);
-    if (slot.style.display === "block") {
-        slot.style.display = "none";
-        slot.innerHTML = "";
-        return;
-    }
-
-    slot.style.display = "block";
-    slot.innerHTML = `
-         <form class="inline-edit-form">
-            <h4 style="color:var(--accent); margin-bottom:15px;">/// MODIFY MODULE</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <label>TECH NAME</label>
-                    <input type="text" class="edit-s-name" value="${data.name}" required>
-                </div>
-                <div>
-                    <label>CATEGORY</label>
-                    <select class="edit-s-cat" style="height: 50px; width:100%; background:#050505; color:white; border:1px solid #333; padding:10px;">
-                        <option value="ENGINES" ${data.category === 'ENGINES' ? 'selected' : ''}>ENGINES</option>
-                        <option value="LANGUAGES" ${data.category === 'LANGUAGES' ? 'selected' : ''}>LANGUAGES</option>
-                        <option value="TOOLS" ${data.category === 'TOOLS' ? 'selected' : ''}>TOOLS</option>
-                    </select>
-                </div>
-            </div>
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button type="submit" class="btn-brutal" style="flex:1;">UPDATE MODULE</button>
-                <button type="button" class="btn-brutal outline" style="flex:1;" onclick="document.getElementById('edit-slot-stack-${id}').style.display='none'">CANCEL</button>
-            </div>
-        </form>
-    `;
-    
-    const form = slot.querySelector("form");
-    form.addEventListener("submit", async(e) => {
-        e.preventDefault();
-        const btn = form.querySelector("button[type='submit']");
-        btn.innerText = "UPDATING...";
-        btn.disabled = true;
-        try {
-            await setDoc(doc(db, "tech_stack", id), {
-                name: form.querySelector(".edit-s-name").value.toUpperCase(),
-                category: form.querySelector(".edit-s-cat").value
-            }, { merge: true });
-            alert("MODULE UPDATED");
-            slot.style.display = "none";
-        } catch (e) { alert("ERROR: " + e.message); }
-        btn.disabled = false;
-        btn.innerText = "UPDATE MODULE";
-    });
-}
-
-// 2. TECH STACK (Already implemented in previous step, ensuring consistency)
-// The loadStack function is assumed to be correct from previous edits.
-
 // 3. EXPERIENCE LISTENER
-const expList = document.getElementById("admin-exp-list");
-subscribeToExperience();
-
 function subscribeToExperience() {
+    const expList = document.getElementById("admin-exp-list");
     const q = query(collection(db, "experience"), orderBy("created_at", "desc"));
     onSnapshot(q, (snapshot) => {
         expList.innerHTML = "";
-        snapshot.forEach((doc) => {
-            renderExpItem(doc.id, doc.data());
-        });
+        snapshot.forEach((doc) => renderExpItem(doc.id, doc.data()));
     });
 }
 
 function renderExpItem(id, data) {
     const item = document.createElement("div");
     item.className = "project-item";
-    item.style.flexDirection = "column"; 
+    item.style.flexDirection = "column";
     item.style.alignItems = "stretch";
-
     item.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <h3>${data.role} @ ${data.company}</h3>
-                <p style="color: var(--accent);">${data.period}</p>
-            </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div><h3>${data.role} @ ${data.company}</h3><p style="color: var(--accent);">${data.period}</p></div>
             <div style="display:flex; gap:10px;">
                 <button class="btn-edit-exp btn-edit" data-id="${id}">EDIT</button>
                 <button class="btn-delete" data-id="${id}">DELETE</button>
             </div>
         </div>
-        <div class="edit-slot" id="edit-slot-exp-${id}" style="display:none; margin-top:20px; border-top:1px dashed #333; padding-top:20px;"></div>
+        <div class="edit-slot" id="edit-exp-slot-${id}" style="display:none; margin-top:20px; border-top:1px dashed #333; padding-top:20px;"></div>
     `;
     item.querySelector(".btn-delete").addEventListener("click", () => deleteItem("experience", id));
-    
-    // Attach Edit Listener
-    item.querySelector(".btn-edit-exp").addEventListener("click", () => {
-        toggleEditExp(id, data);
-    });
-
-    expList.appendChild(item);
+    item.querySelector(".btn-edit-exp").addEventListener("click", () => toggleEditExperience(id, data));
+    document.getElementById("admin-exp-list").appendChild(item);
 }
 
-function toggleEditExp(id, data) {
-    const slot = document.getElementById(`edit-slot-exp-${id}`);
+function toggleEditExperience(id, data) {
+    const slot = document.getElementById(`edit-exp-slot-${id}`);
     if (slot.style.display === "block") {
         slot.style.display = "none";
         slot.innerHTML = "";
         return;
     }
+
     slot.style.display = "block";
     slot.innerHTML = `
-         <form class="inline-edit-form">
-            <h4 style="color:var(--accent); margin-bottom:15px;">/// EDIT HISTORY</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <form class="inline-edit-form" data-id="${id}">
+            <h4 style="color:var(--accent); margin-bottom:15px;">/// EDIT_MODE</h4>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
                     <label>ROLE</label>
                     <input type="text" class="edit-e-role" value="${data.role}" required>
@@ -406,371 +878,271 @@ function toggleEditExp(id, data) {
                     <input type="text" class="edit-e-company" value="${data.company}" required>
                 </div>
             </div>
-            <div style="margin-top:10px;">
-                 <label>PERIOD</label>
-                 <input type="text" class="edit-e-period" value="${data.period}" required>
-            </div>
-            
-            <div style="margin-top:15px;">
-                 <label>FOCUS</label>
-                 <input type="text" class="edit-e-focus" value="${data.focus || ''}" placeholder="FOCUS AREA">
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>PERIOD</label>
+                    <input type="text" class="edit-e-period" value="${data.period}" required>
+                </div>
+                <div>
+                    <label>FOCUS</label>
+                    <input type="text" class="edit-e-focus" value="${data.focus || ''}" placeholder="Focus area...">
+                </div>
             </div>
 
-             <div style="margin-top:10px;">
-                 <label>DESCRIPTION</label>
-                 <textarea class="edit-e-desc" rows="3" required>${data.description}</textarea>
-            </div>
-            
-            <div style="margin-top:15px;">
-                <label>CONTRIBUTIONS</label>
-                <textarea class="edit-e-contrib" style="height:100px;" placeholder="One per line">${data.contributions || ''}</textarea>
-            </div>
+            <label>DESCRIPTION</label>
+            <textarea class="edit-e-desc" rows="3" required>${data.description}</textarea>
 
+            <label>CONTRIBUTIONS (one per line)</label>
+            <textarea class="edit-e-contributions" rows="3" placeholder="Contribution 1\nContribution 2\n...">${data.contributions || ''}</textarea>
+            
             <div style="margin-top:20px; display:flex; gap:10px;">
-                <button type="submit" class="btn-brutal" style="flex:1;">UPDATE HISTORY</button>
-                <button type="button" class="btn-brutal outline" style="flex:1;" onclick="document.getElementById('edit-slot-exp-${id}').style.display='none'">CANCEL</button>
+                <button type="submit" class="btn-brutal" style="flex:1;">SAVE CHANGES</button>
+                <button type="button" class="btn-brutal outline" style="flex:1;" onclick="document.getElementById('edit-exp-slot-${id}').style.display='none'">CANCEL</button>
             </div>
         </form>
     `;
-    
+
     const form = slot.querySelector("form");
-    form.addEventListener("submit", async(e) => {
+    form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const btn = form.querySelector("button[type='submit']");
+        btn.innerText = "SAVING...";
         btn.disabled = true;
+
         try {
-            await setDoc(doc(db, "experience", id), {
+            const updates = {
                 role: form.querySelector(".edit-e-role").value.toUpperCase(),
                 company: form.querySelector(".edit-e-company").value.toUpperCase(),
                 period: form.querySelector(".edit-e-period").value.toUpperCase(),
                 focus: form.querySelector(".edit-e-focus").value,
                 description: form.querySelector(".edit-e-desc").value,
-                contributions: form.querySelector(".edit-e-contrib").value
-            }, { merge: true });
-            alert("HISTORY UPDATED");
+                contributions: form.querySelector(".edit-e-contributions").value
+            };
+            await setDoc(doc(db, "experience", id), updates, { merge: true });
+            alert("EXPERIENCE UPDATED");
             slot.style.display = "none";
-        } catch (e) { alert("ERROR: " + e.message); }
+        } catch (err) { alert("ERROR: " + err.message); }
         btn.disabled = false;
+        btn.innerText = "SAVE CHANGES";
     });
 }
 
 // 4. DEV LOGS LISTENER
-const logList = document.getElementById("admin-log-list");
-subscribeToLogs();
-
 function subscribeToLogs() {
+    const logList = document.getElementById("admin-log-list");
     const q = query(collection(db, "dev_logs"), orderBy("created_at", "desc"));
     onSnapshot(q, (snapshot) => {
         logList.innerHTML = "";
-        snapshot.forEach((doc) => {
-            renderLogItem(doc.id, doc.data());
-        });
+        snapshot.forEach((doc) => renderLogItem(doc.id, doc.data()));
     });
 }
 
 function renderLogItem(id, data) {
     const item = document.createElement("div");
     item.className = "project-item";
-    item.style.flexDirection = "column"; 
-    item.style.alignItems = "stretch";
-
     item.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-             <div>
-                <h3>// ${data.message}</h3>
-                <p style="color: var(--text-dim); font-size: 0.8rem;">[${data.tags || "SYSTEM"}]</p>
-            </div>
-            <div style="display:flex; gap:10px;">
-                <button class="btn-edit-log btn-edit" data-id="${id}">EDIT</button>
-                <button class="btn-delete" data-id="${id}">DELETE</button>
-            </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div><h3>// ${data.message}</h3><p style="color: var(--text-dim); font-size: 0.8rem;">[${data.tags || "SYSTEM"}]</p></div>
+            <button class="btn-delete" data-id="${id}">DELETE</button>
         </div>
-         <div class="edit-slot" id="edit-slot-log-${id}" style="display:none; margin-top:20px; border-top:1px dashed #333; padding-top:20px;"></div>
     `;
     item.querySelector(".btn-delete").addEventListener("click", () => deleteItem("dev_logs", id));
-    
-    // Attach Edit Listener
-    item.querySelector(".btn-edit-log").addEventListener("click", () => {
-         toggleEditLog(id, data);
-    });
-
-    logList.appendChild(item);
-}
-
-function toggleEditLog(id, data) {
-    const slot = document.getElementById(`edit-slot-log-${id}`);
-    if (slot.style.display === "block") {
-        slot.style.display = "none";
-        slot.innerHTML = "";
-        return;
-    }
-    slot.style.display = "block";
-    slot.innerHTML = `
-         <form class="inline-edit-form">
-            <h4 style="color:var(--accent); margin-bottom:15px;">/// EDIT LOG</h4>
-            <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
-                <div>
-                    <label>MESSAGE</label>
-                    <input type="text" class="edit-l-msg" value="${data.message}" required>
-                </div>
-                <div>
-                    <label>TAGS</label>
-                    <input type="text" class="edit-l-tags" value="${data.tags || ''}" required>
-                </div>
-            </div>
-
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button type="submit" class="btn-brutal" style="flex:1;">UPDATE LOG</button>
-                <button type="button" class="btn-brutal outline" style="flex:1;" onclick="document.getElementById('edit-slot-log-${id}').style.display='none'">CANCEL</button>
-            </div>
-        </form>
-    `;
-    
-    const form = slot.querySelector("form");
-    form.addEventListener("submit", async(e) => {
-        e.preventDefault();
-        const btn = form.querySelector("button[type='submit']");
-        btn.disabled = true;
-        try {
-            await setDoc(doc(db, "dev_logs", id), {
-                message: form.querySelector(".edit-l-msg").value,
-                tags: form.querySelector(".edit-l-tags").value.toUpperCase()
-            }, { merge: true });
-            alert("LOG UPDATED");
-            slot.style.display = "none";
-        } catch (e) { alert("ERROR: " + e.message); }
-        btn.disabled = false;
-    });
-}
-
-
-function getCategoryColor(cat) {
-    if(cat === "ENGINES" || cat === "ENGINE" || cat === "CORE") return "#ff00ff";
-    if(cat === "LANGUAGES" || cat === "LANGUAGE" || cat === "FRONTEND") return "#00ffff";
-    if(cat === "TOOLS" || cat === "BACKEND") return "#ffff00";
-    return "#cccccc";
+    document.getElementById("admin-log-list").appendChild(item);
 }
 
 // GENERIC DELETE FUNCTION
 async function deleteItem(collectionName, id) {
     if (confirm("CONFIRM DELETION?")) {
-        try {
-            await deleteDoc(doc(db, collectionName, id));
-        } catch (error) {
-            console.error("Delete Error:", error);
-            alert("Delete Failed");
-        }
-    }
-}
-
-// --- END OF FILE ---
-
-async function updateProject(id, title, type, desc, stackStr, link, iconFile, iconUrl, status) {
-    try {
-        let finalIconUrl = iconUrl;
-        
-        // Handle Icon Upload if file selected
-        if (iconFile) {
-            finalIconUrl = await uploadToCloudinary(iconFile);
-            if (!finalIconUrl) throw new Error("Image Upload Failed");
-        }
-
-        const projectRef = doc(db, "projects", id);
-        
-        await setDoc(projectRef, {
-            title: title,
-            description: desc,
-            type: type,
-            stack: stackStr.split(",").map(s => s.trim().toUpperCase()),
-            link: link,
-            icon_url: finalIconUrl,
-            status: status
-        }, { merge: true });
-    } catch (e) {
-        console.error("Error updating project:", e);
-        throw e;
+        try { await deleteDoc(doc(db, collectionName, id)); } 
+        catch (error) { alert("Delete Failed"); }
     }
 }
 
 // UPLOAD HELPER (CLOUDINARY)
 async function uploadToCloudinary(file) {
-    if (!file) return null;
+    const cloudName = sessionStorage.getItem('cloudinary_name');
+    const uploadPreset = sessionStorage.getItem('cloudinary_preset');
+    
+    if (!cloudName || !uploadPreset) {
+        throw new Error("Cloudinary configuration missing. Please check the config section.");
+    }
     
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", UPLOAD_PRESET);
-
-    try {
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: "POST",
-            body: formData
-        });
-        const data = await response.json();
-        if (data.secure_url) {
-            return data.secure_url;
-        } else {
-            throw new Error("Cloudinary Error: " + (data.error?.message || "Unknown"));
-        }
-    } catch (e) {
-        console.error("Upload failed:", e);
-        throw e;
-    }
+    formData.append("upload_preset", uploadPreset);
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: formData });
+    const data = await response.json();
+    return data.secure_url || null;
 }
 
-// ADD / EDIT PROJECT
+// ADD PROJECT FORM HANDLER
 if(addProjectForm) {
     addProjectForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         
-        // CHECK CONFIG
-        if (CLOUD_NAME === "YOUR_CLOUD_NAME" || UPLOAD_PRESET === "YOUR_UPLOAD_PRESET") {
-            alert("⚠️ CONFIG ERROR: Belum set Cloudinary Cloud Name / Preset di admin.js!");
-            return;
-        }
+        const type = document.getElementById("p-type").value;
+        const title = document.getElementById("p-title").value;
+        const desc = document.getElementById("p-desc").value;
+        const submitBtn = addProjectForm.querySelector("button[type='submit']");
 
         loader.style.display = "block";
-        const submitBtn = addProjectForm.querySelector("button");
-        const editId = addProjectForm.getAttribute("data-edit-id");
-        
         submitBtn.disabled = true;
-        submitBtn.innerText = editId ? "UPDATING PROJECT..." : "UPLOADING ASSETS...";
+        submitBtn.innerText = "PROCESSING...";
 
         try {
-            // Handle Images
-            const iconFile = document.getElementById("p-icon-file").files[0];
             let iconUrl = document.getElementById("p-icon").value;
+            const iconFile = document.getElementById("p-icon-file").files[0];
+            const modelFile = document.getElementById("p-model-file-input")?.files[0];
 
-            if (iconFile) {
+            // Upload standard icon only for Game/Web projects.
+            if (iconFile && type !== "3D Model") {
+                submitBtn.innerText = "UPLOADING_ICON...";
                 iconUrl = await uploadToCloudinary(iconFile);
             }
 
+            let sketchfabUid = document.getElementById("p-sketchfab-uid")?.value || "";
+            if (type === "3D Model" && modelFile && !sketchfabUid) {
+                // Validate 3D model file
+                const allowedExtensions = ['.fbx', '.obj', '.dae', '.blend', '.stl'];
+                const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+                
+                const fileName = modelFile.name.toLowerCase();
+                const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+                const fileSize = modelFile.size;
+                
+                console.log('3D Model Validation:', {
+                    fileName: fileName,
+                    extension: fileExtension,
+                    size: fileSize,
+                    sizeMB: (fileSize / (1024 * 1024)).toFixed(2) + 'MB'
+                });
+                
+                if (!allowedExtensions.includes(fileExtension)) {
+                    alert(`ERROR: Invalid file format!\n\nAllowed formats: ${allowedExtensions.join(', ').toUpperCase()}\nYour file: ${fileExtension.toUpperCase()}`);
+                    loader.style.display = "none";
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "EXECUTE UPLOAD";
+                    return;
+                }
+                
+                if (fileSize > maxSizeBytes) {
+                    const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+                    alert(`ERROR: File too large!\n\nMaximum size: 100MB\nYour file: ${sizeMB}MB`);
+                    loader.style.display = "none";
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "EXECUTE UPLOAD";
+                    return;
+                }
+                
+                submitBtn.innerText = "UPLOADING TO SKETCHFAB...";
+                sketchfabUid = await handleSketchfabUpload(modelFile, title, desc);
+            }
+
+            // Validate that at least one tech stack item has been selected.
+            const selectedStack = getSelectedStack();
+            if (selectedStack.length === 0) {
+                alert("Please select at least one Tech Stack module.");
+                loader.style.display = "none";
+                submitBtn.disabled = false;
+                submitBtn.innerText = "EXECUTE UPLOAD";
+                return;
+            }
+
             const projectData = {
-                title: document.getElementById("p-title").value,
-                type: document.getElementById("p-type").value,
-                description: document.getElementById("p-desc").value,
-                stack: document.getElementById("p-stack").value.split(",").map(s => s.trim().toUpperCase()),
-                link: document.getElementById("p-link").value,
+                title: title,
+                type: type,
+                description: desc,
+                stack: selectedStack,
+                link: document.getElementById("p-link").value || "",
                 icon_url: iconUrl || "",
-                status: document.getElementById("p-status").value, // Added status field
-                // created_at: serverTimestamp() // Don't update timestamp on edit usually
+                sketchfab_uid: sketchfabUid,
+                created_at: serverTimestamp()
             };
 
-            if (editId) {
-                // UPDATE
-                await setDoc(doc(db, "projects", editId), projectData, { merge: true });
-                alert("PROJECT UPDATED");
-                addProjectForm.removeAttribute("data-edit-id");
-                submitBtn.innerText = "EXECUTE UPLOAD";
-            } else {
-                // CREATE
-                projectData.created_at = serverTimestamp();
-                await addDoc(collection(db, "projects"), projectData);
-                alert("PROJECT UPLOADED");
+            // For 3D Model, collect view angles and override icon_url + link.
+            if (type === "3D Model") {
+                const requiredViews = ["front", "back", "left", "right"];
+                for (const view of requiredViews) {
+                    if (!document.getElementById(`url-${view}`).value.trim()) {
+                        alert(`ERROR: ${view.toUpperCase()} view image is required.`);
+                        loader.style.display = "none";
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = "EXECUTE UPLOAD";
+                        return;
+                    }
+                }
+
+                const model_views = {};
+                ["front", "back", "left", "right", "top", "bottom"].forEach(k => {
+                    model_views[k] = document.getElementById(`url-${k}`).value.trim() || null;
+                });
+
+                projectData.model_views = model_views;
+                // Auto-set icon_url and link from front view.
+                projectData.icon_url = model_views.front || iconUrl;
+                projectData.link     = model_views.front || "";
             }
-            
+
+            await addDoc(collection(db, "projects"), projectData);
+            alert("PROJECT UPLOADED SUCCESSFULLY");
             addProjectForm.reset();
-        } catch (e) { 
-            alert("ERROR: " + e.message); 
-            console.error(e);
-        } 
+            // Clear all stack checkboxes after form reset (reset() doesn't affect custom elements).
+            const optionsContainer = document.getElementById('p-stack-options');
+            const countDisplay = document.getElementById('p-stack-selected-count');
+            if (optionsContainer) {
+                const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = false;
+                    cb.parentElement.classList.remove('selected');
+                });
+            }
+            if (countDisplay) {
+                countDisplay.textContent = '0 selected';
+            }
+            // Clear all slot previews after reset.
+            ["front","back","left","right","top","bottom"].forEach(k => {
+                const p = document.getElementById(`preview-${k}`);
+                if (p) p.innerHTML = '<div class="slot-empty">NO IMAGE</div>';
+                const s = document.getElementById(`status-${k}`);
+                if (s) { s.textContent = ""; s.className = "slot-status"; }
+            });
+        } catch (e) { alert("ERROR: " + e.message); console.error(e); } 
         
         loader.style.display = "none";
         submitBtn.disabled = false;
-        if (!editId) submitBtn.innerText = "EXECUTE UPLOAD";
+        submitBtn.innerText = "EXECUTE UPLOAD";
     });
 }
 
-// ADD / EDIT STACK
-const stackForm = document.getElementById("stack-form");
-if(stackForm) {
-    stackForm.addEventListener("submit", async(e) => {
-        e.preventDefault();
-        const submitBtn = stackForm.querySelector("button");
-        const editId = stackForm.getAttribute("data-edit-id");
+// ADD STACK FORM
+document.getElementById("stack-form")?.addEventListener("submit", async(e) => {
+    e.preventDefault();
+    const data = { name: document.getElementById("s-name").value.toUpperCase(), category: document.getElementById("s-category").value, created_at: serverTimestamp() };
+    await addDoc(collection(db, "tech_stack"), data);
+    e.target.reset();
+});
 
-        const stackData = {
-            name: document.getElementById("s-name").value.toUpperCase(),
-            category: document.getElementById("s-category").value
-        };
+// ADD EXP FORM
+document.getElementById("exp-form")?.addEventListener("submit", async(e) => {
+    e.preventDefault();
+    const data = {
+        role: document.getElementById("e-role").value.toUpperCase(),
+        company: document.getElementById("e-company").value.toUpperCase(),
+        period: document.getElementById("e-period").value.toUpperCase(),
+        focus: document.getElementById("e-focus").value,
+        description: document.getElementById("e-desc").value,
+        contributions: document.getElementById("e-contributions").value,
+        created_at: serverTimestamp()
+    };
+    await addDoc(collection(db, "experience"), data);
+    e.target.reset();
+});
 
-        try {
-            if (editId) {
-                await setDoc(doc(db, "tech_stack", editId), stackData, { merge: true });
-                alert("MODULE UPDATED");
-                stackForm.removeAttribute("data-edit-id");
-                submitBtn.innerText = "INSTALL MODULE";
-            } else {
-                stackData.created_at = serverTimestamp();
-                await addDoc(collection(db, "tech_stack"), stackData);
-                alert("MODULE ADDED");
-            }
-            stackForm.reset();
-        } catch (e) { alert("ERROR: " + e.message); }
-    });
-}
-
-// ADD / EDIT EXPERIENCE
-const expForm = document.getElementById("exp-form");
-if(expForm) {
-    expForm.addEventListener("submit", async(e) => {
-        e.preventDefault();
-        
-        const submitBtn = expForm.querySelector("button");
-        const editId = expForm.getAttribute("data-edit-id");
-
-        const expData = {
-            role: document.getElementById("e-role").value.toUpperCase(),
-            company: document.getElementById("e-company").value.toUpperCase(),
-            period: document.getElementById("e-period").value.toUpperCase(),
-            focus: document.getElementById("e-focus").value,
-            description: document.getElementById("e-desc").value,
-            contributions: document.getElementById("e-contributions").value
-        };
-
-        try {
-            if (editId) {
-                await setDoc(doc(db, "experience", editId), expData, { merge: true });
-                alert("HISTORY UPDATED");
-                expForm.removeAttribute("data-edit-id");
-                submitBtn.innerText = "LOG HISTORY";
-            } else {
-                expData.created_at = serverTimestamp();
-                await addDoc(collection(db, "experience"), expData);
-                alert("HISTORY ADDED");
-            }
-            expForm.reset();
-        } catch (e) { alert("ERROR: " + e.message); }
-    });
-}
-
-// ADD / EDIT LOGS
-const logForm = document.getElementById("log-form");
-if(logForm) {
-    logForm.addEventListener("submit", async(e) => {
-        e.preventDefault();
-        
-        const submitBtn = logForm.querySelector("button");
-        const editId = logForm.getAttribute("data-edit-id");
-
-        const logData = {
-            message: document.getElementById("l-msg").value,
-            tags: document.getElementById("l-tags").value.toUpperCase()
-        };
-
-        try {
-            if (editId) {
-                await setDoc(doc(db, "dev_logs", editId), logData, { merge: true });
-                alert("LOG UPDATED");
-                logForm.removeAttribute("data-edit-id");
-                submitBtn.innerText = "COMMIT LOG";
-            } else {
-                logData.created_at = serverTimestamp();
-                await addDoc(collection(db, "dev_logs"), logData);
-                alert("LOG COMMITTED");
-            }
-            logForm.reset();
-        } catch (e) { alert("ERROR: " + e.message); }
-    });
-}
-
-
+// ADD LOG FORM
+document.getElementById("log-form")?.addEventListener("submit", async(e) => {
+    e.preventDefault();
+    const data = { message: document.getElementById("l-msg").value, tags: document.getElementById("l-tags").value.toUpperCase(), created_at: serverTimestamp() };
+    await addDoc(collection(db, "dev_logs"), data);
+    e.target.reset();
+});
