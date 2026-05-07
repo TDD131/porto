@@ -15,6 +15,55 @@ function normalizeStack(value) {
     return [];
 }
 
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function setupProjectDescriptionToggles(container) {
+    if (!container) return;
+
+    container.querySelectorAll(".project-body").forEach(body => {
+        const desc = body.querySelector(".project-desc");
+        const toggle = body.querySelector(".project-desc-toggle");
+        if (!desc || !toggle) return;
+
+        desc.classList.remove("collapsible", "expanded");
+        toggle.classList.remove("visible");
+        toggle.textContent = "MORE";
+        toggle.setAttribute("aria-expanded", "false");
+
+        requestAnimationFrame(() => {
+            const needsToggle = desc.scrollHeight > desc.clientHeight + 4 || desc.textContent.length > 180;
+            if (!needsToggle) return;
+
+            desc.classList.add("collapsible");
+            toggle.classList.add("visible");
+        });
+
+        toggle.addEventListener("click", () => {
+            const isExpanded = desc.classList.toggle("expanded");
+            desc.classList.toggle("collapsible", !isExpanded);
+            toggle.textContent = isExpanded ? "LESS" : "MORE";
+            toggle.setAttribute("aria-expanded", String(isExpanded));
+        });
+
+        desc.addEventListener("wheel", (event) => {
+            if (!desc.classList.contains("expanded")) return;
+            event.stopPropagation();
+        }, { passive: true });
+
+        desc.addEventListener("touchmove", (event) => {
+            if (!desc.classList.contains("expanded")) return;
+            event.stopPropagation();
+        }, { passive: true });
+    });
+}
+
 // --- FIREBASE DATA FETCHING ---
 
 // 1. PROJECTS
@@ -68,7 +117,8 @@ async function loadProjects(filterType = "ALL") {
                         </div>
                         
                         <div class="project-body">
-                            <p class="project-desc">${data.description}</p>
+                            <p class="project-desc">${escapeHtml(data.description || "")}</p>
+                            <button class="project-desc-toggle" type="button" aria-expanded="false">MORE</button>
                         </div>
                     </div>
 
@@ -91,6 +141,7 @@ async function loadProjects(filterType = "ALL") {
         });
 
         container.innerHTML = html;
+        setupProjectDescriptionToggles(container);
 
     } catch (error) {
         console.error("Error loading projects:", error);

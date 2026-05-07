@@ -51,6 +51,31 @@
             outline: none;
             box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
         }
+
+        input,
+        textarea,
+        select,
+        button,
+        .admin-box,
+        .project-item,
+        .btn-delete,
+        .btn-edit,
+        .btn-ai,
+        .admin-nav,
+        .nav-btn,
+        .dropdown-trigger,
+        .dropdown-option,
+        .view-slot,
+        .slot-preview,
+        .stack-pill {
+            transition:
+                color 180ms ease,
+                background 180ms ease,
+                border-color 180ms ease,
+                box-shadow 180ms ease,
+                opacity 180ms ease,
+                transform 180ms ease;
+        }
         
         select option {
             background-color: var(--bg-color);
@@ -265,6 +290,7 @@
         
         .project-item h3 { color: var(--text-primary); margin: 0; }
         .project-item p { color: var(--text-dim); font-size: 0.8rem; margin: 5px 0 0 0; }
+        .project-item:hover { border-color: rgba(255, 255, 255, 0.18); transform: translateY(-1px); }
         
         .btn-delete {
             background: transparent;

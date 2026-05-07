@@ -67,7 +67,7 @@
             font-size: 0.8rem;
             letter-spacing: 0.1rem;
             backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
+            transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 180ms ease;
             text-transform: uppercase;
             border-radius: 4px;
         }
@@ -75,6 +75,7 @@
         .back-btn:hover {
             background: #fff;
             color: #000;
+            transform: translateY(-1px);
         }
 
         /* Top-right UI bar for the Sketchfab link */
@@ -100,7 +101,7 @@
             font-size: 0.75rem;
             letter-spacing: 0.1rem;
             backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
+            transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 180ms ease;
             text-transform: uppercase;
             border-radius: 4px;
             font-family: 'Inter', sans-serif;
@@ -109,13 +110,14 @@
             width: 14px;
             height: 14px;
             opacity: 0.7;
-            transition: opacity 0.3s;
+            transition: opacity 180ms ease;
             flex-shrink: 0;
         }
         .sketchfab-link:hover {
             background: rgba(20, 20, 20, 0.85);
             border-color: rgba(255, 255, 255, 0.4);
             color: #fff;
+            transform: translateY(-1px);
         }
         .sketchfab-link:hover svg { opacity: 1; }
 
@@ -125,7 +127,7 @@
             bottom: 80px;
             left: 30px;
             max-width: 380px;
-            pointer-events: none;
+            pointer-events: auto;
             z-index: 10;
         }
 
@@ -152,6 +154,45 @@
             text-shadow:
                 0 1px 3px rgba(0,0,0,0.95),
                 0 2px 12px rgba(0,0,0,0.8);
+        }
+
+        .model-desc.collapsible {
+            display: -webkit-box;
+            line-clamp: 3;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .model-desc.expanded {
+            display: block;
+            max-height: min(38vh, 260px);
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .desc-toggle {
+            display: none;
+            margin-top: 10px;
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            color: rgba(255, 255, 255, 0.82);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-family: monospace;
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 180ms ease;
+        }
+
+        .desc-toggle.visible { display: inline-flex; }
+        .desc-toggle:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.28);
+            transform: translateY(-1px);
         }
 
         #loading-overlay {
@@ -208,6 +249,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             padding: 10px;
             border-radius: 14px;
+            transition: opacity 220ms ease, transform 220ms ease, padding 220ms ease, gap 220ms ease;
         }
         .view-strip.visible { display: flex; }
         
@@ -308,9 +350,9 @@
             font-size: 0.75rem;
             border-radius: 999px;
             letter-spacing: 1px;
-            transition: background 0.2s;
+            transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
         }
-        .lightbox-close:hover { background: rgba(255,255,255,0.14); }
+        .lightbox-close:hover { background: rgba(255,255,255,0.14); transform: translateY(-1px); }
         .lightbox-label {
             font-family: monospace;
             color: rgba(255, 255, 255, 0.4);
@@ -420,6 +462,12 @@
     </style>
 </head>
 <body>
+    <script>
+        document.body.classList.add('page-enter');
+        requestAnimationFrame(function() {
+            document.body.classList.remove('page-enter');
+        });
+    </script>
 
     <div id="loading-overlay">
         <div class="loader-bar"><div id="loader-progress" class="loader-progress"></div></div>
@@ -460,9 +508,30 @@
     <div class="model-info">
         <h1 id="m-title" class="model-title">MODEL_VIEWER</h1>
         <p id="m-desc" class="model-desc">Loading metadata...</p>
+        <button id="desc-toggle" class="desc-toggle" type="button" aria-expanded="false">MORE</button>
     </div>
 
     <!-- Firebase SDKs -->
+    <script>
+        (function() {
+            var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reduceMotion) return;
+
+            document.querySelectorAll('a[href]').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    var url;
+                    try { url = new URL(link.href, window.location.href); } catch (err) { return; }
+                    if (url.origin !== window.location.origin) return;
+                    if (link.target && link.target !== '_self') return;
+                    e.preventDefault();
+                    document.body.classList.add('page-leave');
+                    setTimeout(function() {
+                        window.location.href = url.href;
+                    }, 260);
+                });
+            });
+        })();
+    </script>
     <script type="module">
         import { db } from "./js/firebase-config.js";
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -474,6 +543,33 @@
         const loaderStatus = document.getElementById('loader-status');
         const loadingOverlay = document.getElementById('loading-overlay');
         const viewStrip = document.getElementById('view-strip');
+        const modelDesc = document.getElementById('m-desc');
+        const descToggle = document.getElementById('desc-toggle');
+
+        function setupDescriptionToggle() {
+            if (!modelDesc || !descToggle) return;
+
+            modelDesc.classList.remove('collapsible', 'expanded');
+            descToggle.classList.remove('visible');
+            descToggle.textContent = 'MORE';
+            descToggle.setAttribute('aria-expanded', 'false');
+
+            requestAnimationFrame(() => {
+                const needsToggle = modelDesc.scrollHeight > modelDesc.clientHeight + 4 || modelDesc.textContent.length > 180;
+                if (!needsToggle) return;
+
+                modelDesc.classList.add('collapsible');
+                descToggle.classList.add('visible');
+            });
+        }
+
+        descToggle?.addEventListener('click', () => {
+            if (!modelDesc) return;
+            const isExpanded = modelDesc.classList.toggle('expanded');
+            modelDesc.classList.toggle('collapsible', !isExpanded);
+            descToggle.textContent = isExpanded ? 'LESS' : 'MORE';
+            descToggle.setAttribute('aria-expanded', String(isExpanded));
+        });
 
         async function initViewer() {
             if (!projectId) {
@@ -493,7 +589,10 @@
 
                 const data = docSnap.data();
                 document.getElementById('m-title').innerText = data.title || 'UNTITLED';
-                document.getElementById('m-desc').innerText = data.description || '';
+                if (modelDesc) {
+                    modelDesc.innerText = data.description || '';
+                    setupDescriptionToggle();
+                }
                 loaderProgress.style.width = "60%";
 
                 // Render view angle thumbnails if model_views data exists.
@@ -502,7 +601,7 @@
                 const availableViews = viewKeys.filter(k => views[k]);
                 if (viewStrip && availableViews.length > 0) {
                     viewStrip.classList.add('visible');
-                    viewStrip.classList.remove('collapsed');
+                    viewStrip.classList.add('collapsed');
 
                     // Inner hide/show toggle button at the top of the panel
                     const thumbsHtml = availableViews.map(key => `
@@ -513,7 +612,7 @@
                     `).join('');
 
                     viewStrip.innerHTML = `
-                        <button class="view-strip-inner-toggle" id="view-strip-inner-toggle" type="button">HIDE</button>
+                        <button class="view-strip-inner-toggle" id="view-strip-inner-toggle" type="button">SHOW</button>
                         <div class="view-thumb-wrapper">
                             ${thumbsHtml}
                         </div>

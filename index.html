@@ -20,6 +20,12 @@
     </script>
 </head>
 <body class="page-home">
+    <script>
+        document.body.classList.add('page-enter');
+        requestAnimationFrame(function() {
+            document.body.classList.remove('page-enter');
+        });
+    </script>
     <nav class="site-nav">
         <div class="nav-inner">
             <a class="logo" href="#hero" aria-label="Home">Tristan Davin Dakara</a>
@@ -211,6 +217,29 @@
                     mobileNav.classList.remove('open');
                     document.body.classList.remove('mobile-menu-open');
                     hamburger.setAttribute('aria-expanded', 'false');
+                });
+            });
+        })();
+    </script>
+
+    <!-- Page Transition Logic -->
+    <script>
+        (function() {
+            var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reduceMotion) return;
+
+            document.querySelectorAll('a[href]').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    var url;
+                    try { url = new URL(link.href, window.location.href); } catch (err) { return; }
+                    if (url.origin !== window.location.origin) return;
+                    if (link.target && link.target !== '_self') return;
+                    if (url.pathname === window.location.pathname && url.hash) return;
+                    e.preventDefault();
+                    document.body.classList.add('page-leave');
+                    setTimeout(function() {
+                        window.location.href = url.href;
+                    }, 260);
                 });
             });
         })();
