@@ -413,6 +413,92 @@
             line-height: 1;
             display: inline-block;
         }
+
+        /* Admin Mobile Responsive */
+        @media (max-width: 768px) {
+            body { padding-top: 80px; }
+            .admin-box { padding: 24px; max-width: 100%; }
+            .admin-header h1 { font-size: 1.5rem; }
+
+            #dashboard { padding: 0 10px; padding-bottom: 80px; }
+
+            /* Admin nav: wrap and scroll on small screens */
+            .admin-nav {
+                position: sticky;
+                top: 10px;
+                padding: 8px 12px;
+                gap: 6px;
+                border-radius: 14px;
+                overflow-x: auto;
+                justify-content: flex-start;
+                -webkit-overflow-scrolling: touch;
+            }
+            .nav-btn {
+                font-size: 0.7rem;
+                padding: 6px 12px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            /* Config container already goes 1-col at 768px via existing rule */
+
+            /* Form grids: stack to single column */
+            form > div[style*="grid-template-columns: 1fr 1fr"],
+            .inline-edit-form > div[style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Project items: stack vertically */
+            .project-item {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px;
+                padding: 16px;
+            }
+            .project-item > div { width: 100%; }
+            .project-item > div:last-child {
+                display: flex;
+                justify-content: flex-end;
+                gap: 8px;
+            }
+
+            /* View angles grid already goes 2-col at 768px via existing rule */
+            .slot-preview { height: 60px; }
+
+            input, textarea, select {
+                padding: 12px;
+                font-size: 0.85rem;
+            }
+
+            .btn-brutal {
+                padding: 12px 18px;
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body { padding-top: 70px; }
+            .admin-box { padding: 18px; border-radius: 14px; }
+            .admin-header h1 { font-size: 1.3rem; }
+            .admin-subpanel { padding: 12px; }
+
+            .admin-nav { gap: 4px; padding: 6px 8px; }
+            .nav-btn { font-size: 0.6rem; padding: 5px 10px; }
+
+            .config-container { padding: 16px; gap: 14px; }
+            .config-item input { padding: 10px 12px; font-size: 0.75rem; }
+
+            input, textarea, select { padding: 10px; font-size: 0.8rem; margin-bottom: 14px; }
+            label { font-size: 0.7rem; }
+
+            .view-angles-grid { gap: 8px; }
+            .slot-preview { height: 50px; }
+            .view-file-input { font-size: 0.55rem; padding: 4px; }
+            .view-url-input { font-size: 0.6rem; padding: 6px 8px; }
+
+            .btn-brutal { padding: 10px 14px; font-size: 0.8rem; }
+            .btn-ai { padding: 6px 14px; font-size: 0.7rem; }
+        }
     </style>
 </head>
 <body>

@@ -192,17 +192,16 @@
             margin-top: 10px;
         }
 
-        /* View Angle Strip — positioned on the right side, vertically centered.
-           Avoids overlapping Sketchfab's own bottom-right control bar (gear, fullscreen, etc.).
-           Vertical layout mirrors professional 3D software side panels. */
+        /* View Angle Strip — positioned on the right side, vertically centered. */
         .view-strip {
             position: absolute;
             right: 20px;
             top: 50%;
             transform: translateY(-50%);
             display: none;
-            flex-direction: column;
-            gap: 8px;
+            flex-direction: row; /* Switch to row so button is beside thumbs */
+            align-items: center;
+            gap: 10px;
             z-index: 50;
             background: rgba(0, 0, 0, 0.55);
             backdrop-filter: blur(12px);
@@ -210,6 +209,14 @@
             padding: 10px;
             border-radius: 14px;
         }
+        .view-strip.visible { display: flex; }
+        
+        .view-thumb-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .view-thumb-container {
             display: flex;
             flex-direction: column;
@@ -238,6 +245,35 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
+
+        /* Inner toggle button sitting beside thumbnails in the view-strip panel */
+        .view-strip-inner-toggle {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.55);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.55rem;
+            letter-spacing: 0.12rem;
+            text-transform: uppercase;
+            padding: 8px 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: color 0.2s ease;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            border-left: 1px dashed rgba(255, 255, 255, 0.2);
+            margin-right: 2px;
+        }
+        .view-strip-inner-toggle:hover {
+            color: rgba(255, 255, 255, 0.85);
+        }
+        /* Collapsed state: hide thumbnails, keep panel */
+        .view-strip.collapsed {
+            padding: 8px 6px;
+        }
+        .view-strip.collapsed .view-thumb-wrapper { display: none; }
+        .view-strip.collapsed .view-strip-inner-toggle { border-left: none; margin-right: 0; }
 
         /* Lightbox */
         .lightbox-overlay {
@@ -282,6 +318,105 @@
             letter-spacing: 2px;
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Mobile responsive for model viewer */
+        @media (max-width: 768px) {
+            .model-info {
+                bottom: 60px;
+                left: 16px;
+                max-width: 260px;
+            }
+            .model-title {
+                font-size: 1.1rem;
+                letter-spacing: 1px;
+            }
+            .model-desc {
+                font-size: 0.78rem;
+                line-height: 1.4;
+            }
+            .viewer-ui {
+                top: 50px;
+                left: 14px;
+            }
+            .back-btn {
+                padding: 8px 14px;
+                font-size: 0.7rem;
+            }
+            .viewer-ui-right {
+                top: 14px;
+                right: 14px;
+            }
+            .sketchfab-link {
+                padding: 8px 12px;
+                font-size: 0.65rem;
+            }
+            /* View strip: move to bottom horizontal strip on mobile */
+            .view-strip {
+                right: auto;
+                left: 50%;
+                top: auto;
+                bottom: 12px;
+                transform: translateX(-50%);
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                padding: 8px;
+                gap: 6px;
+                border-radius: 12px;
+                width: auto;
+                max-width: 90%;
+            }
+            .view-thumb-wrapper {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .view-strip-inner-toggle {
+                position: relative;
+                right: auto;
+                top: auto;
+                transform: none;
+                margin-right: 0;
+                writing-mode: horizontal-tb;
+                background: transparent;
+                font-size: 0.45rem;
+                padding: 4px 8px;
+                align-self: center;
+                width: 100%;
+                margin-bottom: 2px;
+                border-left: none;
+                border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+            }
+            .view-strip.collapsed .view-strip-inner-toggle { border-bottom: none; }
+            .view-thumb {
+                width: 40px;
+                height: 40px;
+            }
+            .view-thumb-label { font-size: 0.4rem; }
+            #lightbox-img {
+                max-width: 95vw;
+                max-height: 75vh;
+                border-radius: 6px;
+            }
+            .lightbox-close {
+                top: 14px;
+                right: 14px;
+                padding: 6px 14px;
+                font-size: 0.65rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .model-info {
+                bottom: 50px;
+                left: 12px;
+                max-width: 200px;
+            }
+            .model-title { font-size: 0.95rem; }
+            .model-desc { font-size: 0.7rem; }
+            .view-thumb { width: 34px; height: 34px; }
+            .view-strip-inner-toggle { font-size: 0.4rem; padding: 3px 7px; }
+        }
     </style>
 </head>
 <body>
@@ -338,6 +473,7 @@
         const loaderProgress = document.getElementById('loader-progress');
         const loaderStatus = document.getElementById('loader-status');
         const loadingOverlay = document.getElementById('loading-overlay');
+        const viewStrip = document.getElementById('view-strip');
 
         async function initViewer() {
             if (!projectId) {
@@ -364,16 +500,35 @@
                 const views = data.model_views || {};
                 const viewKeys = ['front','back','left','right','top','bottom'];
                 const availableViews = viewKeys.filter(k => views[k]);
-                const strip = document.getElementById('view-strip');
+                if (viewStrip && availableViews.length > 0) {
+                    viewStrip.classList.add('visible');
+                    viewStrip.classList.remove('collapsed');
 
-                if (availableViews.length > 0) {
-                    strip.style.display = 'flex';
-                    strip.innerHTML = availableViews.map(key => `
+                    // Inner hide/show toggle button at the top of the panel
+                    const thumbsHtml = availableViews.map(key => `
                         <div class="view-thumb-container" onclick="openLightbox('${views[key]}', '${key.toUpperCase()} VIEW')">
                             <img src="${views[key]}" class="view-thumb" alt="${key} view" loading="lazy">
                             <span class="view-thumb-label">${key}</span>
                         </div>
                     `).join('');
+
+                    viewStrip.innerHTML = `
+                        <button class="view-strip-inner-toggle" id="view-strip-inner-toggle" type="button">HIDE</button>
+                        <div class="view-thumb-wrapper">
+                            ${thumbsHtml}
+                        </div>
+                    `;
+
+                    // Wire up the inner toggle button
+                    const innerToggle = document.getElementById('view-strip-inner-toggle');
+                    innerToggle?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isCollapsed = viewStrip.classList.toggle('collapsed');
+                        innerToggle.textContent = isCollapsed ? 'SHOW' : 'HIDE';
+                    });
+                } else if (viewStrip) {
+                    viewStrip.className = 'view-strip';
+                    viewStrip.innerHTML = '';
                 }
 
                 // Priority: Sketchfab embed > front view image > icon_url fallback.
