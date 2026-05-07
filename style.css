@@ -286,6 +286,95 @@ nav.site-nav {
     display: none;
 }
 
+@media (max-width: 900px) {
+    .nav-inner {
+        gap: 10px;
+        padding: 0 14px;
+    }
+
+    .logo {
+        min-width: 0;
+        max-width: min(52vw, 220px);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 0.95rem;
+    }
+
+    .nav-links {
+        display: none;
+    }
+
+    .theme-toggle {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        margin-left: auto;
+        flex: 0 0 42px;
+    }
+
+    .hamburger {
+        display: flex;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        background: transparent;
+        border: 1px solid var(--border-dim);
+        border-radius: 10px;
+        cursor: pointer;
+        z-index: 1001;
+    }
+
+    .hamburger span {
+        display: block;
+        width: 20px;
+        height: 2px;
+        background: var(--text-primary);
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .hamburger.active span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.active span:nth-child(2) { opacity: 0; }
+    .hamburger.active span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .mobile-nav-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: color-mix(in srgb, var(--bg-color) 95%, transparent);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        z-index: 999;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 30px;
+        padding: 80px 20px 40px;
+    }
+
+    .mobile-nav-overlay.open {
+        display: flex;
+    }
+
+    .mobile-nav-overlay a {
+        font-family: var(--font-display);
+        font-size: 1.4rem;
+        color: var(--text-primary);
+        text-decoration: none;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: color 0.2s;
+    }
+
+    body.mobile-menu-open {
+        overflow: hidden;
+    }
+}
+
 .theme-toggle iconify-icon {
     width: 18px;
     height: 18px;
@@ -973,58 +1062,6 @@ footer {
 @media (max-width: 768px) {
     :root { --spacing: 56px; }
 
-    /* Navigation: hide desktop links, show hamburger */
-    .nav-links { display: none; }
-    .nav-inner { position: relative; }
-    .hamburger {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        background: transparent;
-        border: 1px solid var(--border-dim);
-        border-radius: 8px;
-        padding: 10px;
-        cursor: pointer;
-        z-index: 1001;
-    }
-    .hamburger span {
-        display: block;
-        width: 20px;
-        height: 2px;
-        background: var(--text-primary);
-        transition: transform 0.3s ease, opacity 0.3s ease;
-    }
-    .hamburger.active span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-    .hamburger.active span:nth-child(2) { opacity: 0; }
-    .hamburger.active span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-    /* Mobile nav overlay */
-    .mobile-nav-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: color-mix(in srgb, var(--bg-color) 95%, transparent);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        z-index: 999;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 30px;
-    }
-    .mobile-nav-overlay.open { display: flex; }
-    .mobile-nav-overlay a {
-        font-family: var(--font-display);
-        font-size: 1.4rem;
-        color: var(--text-primary);
-        text-decoration: none;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        transition: color 0.2s;
-    }
-    .mobile-nav-overlay a:hover { color: var(--accent); }
-
-    .theme-toggle { margin-left: auto; margin-right: 12px; }
     .page-home { padding-top: 60px; }
     nav.site-nav { padding: 12px 0; }
 
