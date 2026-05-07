@@ -1,6 +1,6 @@
 import { auth, db, storage } from "./firebase-config.js";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, setDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // CLOUDINARY CONFIG - Session Storage
@@ -18,10 +18,16 @@ const loginForm = document.getElementById("login-form");
 const logoutBtn = document.getElementById("btn-logout");
 const addProjectForm = document.getElementById("add-project-form");
 const projectList = document.getElementById("admin-project-list");
+const statsForm = document.getElementById("stats-form");
+const statsList = document.getElementById("admin-stats-list");
+const logListContainer = document.getElementById("admin-log-list");
 const loginMsg = document.getElementById("login-msg");
 const loader = document.getElementById("upload-loader");
 const aiBtn = document.getElementById("btn-ai-desc");
 const aiStatus = document.getElementById("ai-desc-status");
+
+let logStackPickerInitialized = false;
+let logStackUnsubscribe = null;
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -41,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusEl.innerHTML = '<span style="color: #ff4444;">✗ INVALID (cached)</span>';
         }
     }
-    
+
     if (sfKeyInput && SKETCHFAB_API_TOKEN) {
         sfKeyInput.value = SKETCHFAB_API_TOKEN;
         // Check cached validation status instead of re-validating
@@ -96,6 +102,109 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTypeSwitch();
     initModelViewSlots();
 });
+
+// 2b. STATS LISTENER
+function subscribeToStats() {
+    if (!statsList) return;
+    const q = query(collection(db, "stats"), orderBy("order"));
+    onSnapshot(q, (snapshot) => {
+        statsList.innerHTML = "";
+        if (snapshot.empty) {
+            statsList.innerHTML = `<div class="empty-state">NO STAT CARDS</div>`;
+            return;
+        }
+        snapshot.forEach(docSnap => renderStatItem(docSnap.id, docSnap.data()));
+    });
+}
+
+function renderStatItem(id, data) {
+    if (!statsList) return;
+    const orderValue = typeof data.order === "number" ? data.order : 0;
+    const label = (data.label || "").toUpperCase();
+    const value = data.value || "-";
+
+    const item = document.createElement("div");
+    item.className = "project-item";
+    item.style.flexDirection = "column";
+    item.style.alignItems = "stretch";
+    item.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div>
+                <h3>${value}</h3>
+                <p style="color: var(--text-dim); margin: 4px 0 0;">${label}</p>
+                <small style="color: var(--text-dim);">ORDER: ${orderValue}</small>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-edit-stat btn-edit" data-id="${id}">EDIT</button>
+                <button class="btn-delete" data-id="${id}">DELETE</button>
+            </div>
+        </div>
+        <div class="edit-slot" id="edit-stat-slot-${id}" style="display:none; margin-top:20px; border-top:1px dashed #333; padding-top:20px;"></div>
+    `;
+
+    item.querySelector(".btn-delete").addEventListener("click", () => deleteItem("stats", id));
+    item.querySelector(".btn-edit-stat").addEventListener("click", () => toggleEditStat(id, data));
+    statsList.appendChild(item);
+}
+
+function toggleEditStat(id, data) {
+    const slot = document.getElementById(`edit-stat-slot-${id}`);
+    if (!slot) return;
+
+    if (slot.style.display === "block") {
+        slot.style.display = "none";
+        slot.innerHTML = "";
+        return;
+    }
+
+    slot.style.display = "block";
+    slot.innerHTML = `
+        <form class="inline-edit-form" data-id="${id}">
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                <div>
+                    <label>VALUE</label>
+                    <input type="text" class="edit-stat-value" value="${data.value || ''}" required>
+                </div>
+                <div>
+                    <label>LABEL</label>
+                    <input type="text" class="edit-stat-label" value="${(data.label || '').toUpperCase()}" required>
+                </div>
+                <div>
+                    <label>ORDER</label>
+                    <input type="number" class="edit-stat-order" value="${typeof data.order === 'number' ? data.order : 0}" min="0" step="1">
+                </div>
+            </div>
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button type="submit" class="btn-brutal" style="flex:1;">SAVE CHANGES</button>
+                <button type="button" class="btn-brutal outline" style="flex:1;" onclick="document.getElementById('edit-stat-slot-${id}').style.display='none'">CANCEL</button>
+            </div>
+        </form>
+    `;
+
+    const form = slot.querySelector("form");
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector("button[type='submit']");
+        btn.disabled = true;
+        btn.innerText = "SAVING...";
+
+        try {
+            const updates = {
+                value: form.querySelector(".edit-stat-value").value.trim(),
+                label: form.querySelector(".edit-stat-label").value.trim().toUpperCase(),
+                order: Number(form.querySelector(".edit-stat-order").value) || 0
+            };
+            await setDoc(doc(db, "stats", id), updates, { merge: true });
+            alert("STAT UPDATED");
+            slot.style.display = "none";
+        } catch (err) {
+            alert("ERROR: " + err.message);
+        }
+
+        btn.disabled = false;
+        btn.innerText = "SAVE CHANGES";
+    });
+}
 
 // --- TYPE SWITCH: Shows/hides asset panels based on project category ---
 function handleTypeSwitch() {
@@ -370,12 +479,15 @@ onAuthStateChanged(auth, (user) => {
         loginPanel.style.display = "none";
         dashboard.style.display = "block";
         subscribeToProjects();
+        subscribeToStats();
         subscribeToExperience();
         subscribeToLogs();
+        initLogStackPicker();
         populateStackPicker(); // Populate tech stack pills from DB on login.
     } else {
         loginPanel.style.display = "block";
         dashboard.style.display = "none";
+        cleanupLogStackPicker();
     }
 });
 
@@ -573,6 +685,201 @@ function getSelectedEditStack(projectId) {
     
     const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]:checked');
     return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function initLogStackPicker() {
+    const dropdown = document.getElementById("log-stack-dropdown");
+    const trigger = document.getElementById("log-stack-trigger");
+    const optionsContainer = document.getElementById("log-stack-options");
+    const countDisplay = document.getElementById("log-stack-selected-count");
+    const hiddenInput = document.getElementById("log-stack-hidden");
+
+    if (!dropdown || !trigger || !optionsContainer || !countDisplay) return;
+
+    if (!logStackPickerInitialized) {
+        trigger.addEventListener("click", (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle("open");
+            optionsContainer.style.display = dropdown.classList.contains("open") ? "block" : "none";
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!dropdown.contains(e.target)) {
+                dropdown.classList.remove("open");
+                optionsContainer.style.display = "none";
+            }
+        });
+
+        logStackPickerInitialized = true;
+    }
+
+    if (logStackUnsubscribe) {
+        logStackUnsubscribe();
+        logStackUnsubscribe = null;
+    }
+
+    const q = query(collection(db, "tech_stack"), orderBy("name"));
+    logStackUnsubscribe = onSnapshot(q, (snapshot) => {
+        const previousSelection = new Set(getSelectedValuesFromContainer(optionsContainer));
+        optionsContainer.innerHTML = "";
+
+        if (snapshot.empty) {
+            optionsContainer.innerHTML = '<div class="dropdown-option" style="cursor: default;">No tech stack entries</div>';
+            updateSelectedState();
+            return;
+        }
+
+        snapshot.forEach((docSnap) => {
+            const techName = docSnap.data().name;
+            const isSelected = previousSelection.has(techName);
+            const option = document.createElement("div");
+            option.className = "dropdown-option" + (isSelected ? " selected" : "");
+            option.innerHTML = `
+                <input type="checkbox" ${isSelected ? "checked" : ""} value="${techName}">
+                <span>${techName}</span>
+            `;
+
+            const checkbox = option.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener("change", () => {
+                option.classList.toggle("selected", checkbox.checked);
+                updateSelectedState();
+            });
+
+            option.addEventListener("click", (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    option.classList.toggle("selected", checkbox.checked);
+                    updateSelectedState();
+                }
+            });
+
+            optionsContainer.appendChild(option);
+        });
+
+        updateSelectedState();
+    });
+
+    function updateSelectedState() {
+        const selected = getSelectedLogStack();
+        countDisplay.textContent = selected.length ? `${selected.length} selected` : "Select stack";
+        if (hiddenInput) {
+            hiddenInput.value = selected.join(",");
+        }
+    }
+}
+
+function cleanupLogStackPicker() {
+    if (logStackUnsubscribe) {
+        logStackUnsubscribe();
+        logStackUnsubscribe = null;
+    }
+}
+
+function mountEditLogStackPicker(logId, selected = [], slot) {
+    const dropdown = document.getElementById(`edit-log-stack-dropdown-${logId}`);
+    const trigger = document.getElementById(`edit-log-stack-trigger-${logId}`);
+    const optionsContainer = document.getElementById(`edit-log-stack-options-${logId}`);
+    const countDisplay = document.getElementById(`edit-log-stack-selected-count-${logId}`);
+    const hiddenInput = document.getElementById(`edit-log-stack-hidden-${logId}`);
+
+    if (!dropdown || !trigger || !optionsContainer || !countDisplay) return;
+
+    trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle("open");
+        optionsContainer.style.display = dropdown.classList.contains("open") ? "block" : "none";
+    });
+
+    const outsideHandler = (e) => {
+        if (!dropdown.contains(e.target)) {
+            dropdown.classList.remove("open");
+            optionsContainer.style.display = "none";
+        }
+    };
+    document.addEventListener("click", outsideHandler);
+
+    const q = query(collection(db, "tech_stack"), orderBy("name"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const previousSelection = new Set(getSelectedValuesFromContainer(optionsContainer));
+        if (previousSelection.size === 0 && selected.length) {
+            selected.forEach((item) => previousSelection.add(item));
+        }
+
+        optionsContainer.innerHTML = "";
+
+        if (snapshot.empty) {
+            optionsContainer.innerHTML = '<div class="dropdown-option" style="cursor: default;">No tech stack entries</div>';
+            updateSelectedState();
+            return;
+        }
+
+        snapshot.forEach((docSnap) => {
+            const techName = docSnap.data().name;
+            const isSelected = previousSelection.has(techName);
+            const option = document.createElement("div");
+            option.className = "dropdown-option" + (isSelected ? " selected" : "");
+            option.innerHTML = `
+                <input type="checkbox" ${isSelected ? "checked" : ""} value="${techName}">
+                <span>${techName}</span>
+            `;
+
+            const checkbox = option.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener("change", () => {
+                option.classList.toggle("selected", checkbox.checked);
+                updateSelectedState();
+            });
+
+            option.addEventListener("click", (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    option.classList.toggle("selected", checkbox.checked);
+                    updateSelectedState();
+                }
+            });
+
+            optionsContainer.appendChild(option);
+        });
+
+        updateSelectedState();
+    });
+
+    slot._logStackUnsub = unsubscribe;
+    slot._logStackOutsideHandler = outsideHandler;
+
+    function updateSelectedState() {
+        const selectedValues = getSelectedValuesFromContainer(optionsContainer);
+        countDisplay.textContent = selectedValues.length ? `${selectedValues.length} selected` : "Select stack";
+        if (hiddenInput) {
+            hiddenInput.value = selectedValues.join(",");
+        }
+    }
+}
+
+function teardownLogStackPicker(slot) {
+    if (slot && slot._logStackUnsub) {
+        slot._logStackUnsub();
+        slot._logStackUnsub = null;
+    }
+    if (slot && slot._logStackOutsideHandler) {
+        document.removeEventListener("click", slot._logStackOutsideHandler);
+        slot._logStackOutsideHandler = null;
+    }
+}
+
+function getSelectedValuesFromContainer(container) {
+    if (!container) return [];
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map((cb) => cb.value);
+}
+
+function getSelectedLogStack() {
+    const container = document.getElementById("log-stack-options");
+    return getSelectedValuesFromContainer(container);
+}
+
+function getSelectedEditLogStack(logId) {
+    const container = document.getElementById(`edit-log-stack-options-${logId}`);
+    return getSelectedValuesFromContainer(container);
 }
 
 loginForm?.addEventListener("submit", async (e) => {
@@ -1150,25 +1457,183 @@ function toggleEditExperience(id, data) {
 
 // 4. DEV LOGS LISTENER
 function subscribeToLogs() {
-    const logList = document.getElementById("admin-log-list");
+    if (!logListContainer) return;
     const q = query(collection(db, "dev_logs"), orderBy("created_at", "desc"));
     onSnapshot(q, (snapshot) => {
-        logList.innerHTML = "";
-        snapshot.forEach((doc) => renderLogItem(doc.id, doc.data()));
+        logListContainer.innerHTML = "";
+        if (snapshot.empty) {
+            logListContainer.innerHTML = `<div class="empty-state">NO LOG ENTRIES</div>`;
+            return;
+        }
+        snapshot.forEach((docSnap) => renderLogItem(docSnap.id, docSnap.data()));
     });
 }
 
-function renderLogItem(id, data) {
+function renderLogItem(id, data = {}) {
+    if (!logListContainer) return;
     const item = document.createElement("div");
     item.className = "project-item";
+
+    const createdLabel = formatAdminTimestamp(data.created_at);
+    const updatedLabel = data.updated_at ? formatAdminTimestamp(data.updated_at) : null;
+    const tagList = normalizeLogTags(data.tags);
+    const tagsLabel = (tagList.length ? tagList.join(", ") : "SYSTEM").toUpperCase();
+
     item.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-            <div><h3>// ${data.message}</h3><p style="color: var(--text-dim); font-size: 0.8rem;">[${data.tags || "SYSTEM"}]</p></div>
-            <button class="btn-delete" data-id="${id}">DELETE</button>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; gap:20px;">
+            <div>
+                <h3>// ${data.message || ""}</h3>
+                <p style="color: var(--text-dim); font-size: 0.8rem;">[${tagsLabel}]</p>
+                <small style="color: var(--text-dim); font-size: 0.75rem;">CREATED: ${createdLabel}${updatedLabel ? ` · EDITED: ${updatedLabel}` : ""}</small>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-edit btn-edit-log" data-id="${id}">EDIT</button>
+                <button class="btn-delete" data-id="${id}">DELETE</button>
+            </div>
         </div>
+        <div class="edit-slot" id="edit-log-slot-${id}" style="display:none; margin-top:20px; border-top:1px dashed #333; padding-top:20px;"></div>
     `;
+
     item.querySelector(".btn-delete").addEventListener("click", () => deleteItem("dev_logs", id));
-    document.getElementById("admin-log-list").appendChild(item);
+    item.querySelector(".btn-edit-log").addEventListener("click", () => toggleEditLog(id, data));
+    logListContainer.appendChild(item);
+}
+
+function toggleEditLog(id, data = {}) {
+    const slot = document.getElementById(`edit-log-slot-${id}`);
+    if (!slot) return;
+
+    if (slot.style.display === "block") {
+        teardownLogStackPicker(slot);
+        slot.style.display = "none";
+        slot.innerHTML = "";
+        return;
+    }
+
+    slot.style.display = "block";
+    slot.innerHTML = `
+        <form class="inline-edit-form" data-id="${id}">
+            <div style="display:grid; gap:16px;">
+                <div>
+                    <label>MESSAGE</label>
+                    <textarea class="edit-log-message" rows="3" required></textarea>
+                </div>
+                <div>
+                    <label>TECH STACK <span style="color: var(--text-dim); font-weight: 400;">(Multi-select dropdown)</span></label>
+                    <div class="multi-select-dropdown" id="edit-log-stack-dropdown-${id}">
+                        <div class="dropdown-trigger" id="edit-log-stack-trigger-${id}">
+                            <span id="edit-log-stack-selected-count-${id}">Select stack</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-options" id="edit-log-stack-options-${id}" style="display:none;"></div>
+                    </div>
+                    <input type="text" id="edit-log-stack-hidden-${id}" style="display:none;" value="">
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:16px;">
+                    <div>
+                        <label>CREATED AT</label>
+                        <input type="date" class="edit-log-created">
+                    </div>
+                    <div>
+                        <label>UPDATED AT</label>
+                        <input type="date" class="edit-log-updated">
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:16px; display:flex; gap:10px;">
+                <button type="submit" class="btn-brutal" style="flex:1;">SAVE LOG</button>
+                <button type="button" class="btn-brutal outline btn-cancel-log" style="flex:1;">CANCEL</button>
+            </div>
+        </form>
+    `;
+
+    const form = slot.querySelector("form");
+    const msgInput = slot.querySelector(".edit-log-message");
+    const createdInput = slot.querySelector(".edit-log-created");
+    const updatedInput = slot.querySelector(".edit-log-updated");
+    const cancelBtn = slot.querySelector(".btn-cancel-log");
+
+    msgInput.value = data.message || "";
+    createdInput.value = formatDateInputValue(data.created_at);
+    updatedInput.value = formatDateInputValue(data.updated_at);
+
+    mountEditLogStackPicker(id, normalizeLogTags(data.tags), slot);
+
+    cancelBtn.addEventListener("click", () => {
+        teardownLogStackPicker(slot);
+        slot.style.display = "none";
+        slot.innerHTML = "";
+    });
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const submitBtn = form.querySelector("button[type='submit']");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "SAVING...";
+
+        try {
+            const payload = {
+                message: msgInput.value.trim(),
+                tags: (() => {
+                    const selection = getSelectedEditLogStack(id);
+                    return selection.length ? selection : ["SYSTEM"];
+                })(),
+                created_at: parseDateInput(createdInput.value) || data.created_at || serverTimestamp(),
+                updated_at: parseDateInput(updatedInput.value) || serverTimestamp()
+            };
+            await setDoc(doc(db, "dev_logs", id), payload, { merge: true });
+            alert("LOG UPDATED");
+            teardownLogStackPicker(slot);
+            slot.style.display = "none";
+            slot.innerHTML = "";
+        } catch (error) {
+            alert("ERROR: " + error.message);
+        }
+
+        submitBtn.disabled = false;
+        submitBtn.textContent = "SAVE LOG";
+    });
+}
+
+function formatAdminTimestamp(timestamp) {
+    if (!timestamp) return "—";
+    try {
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return date.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    } catch (error) {
+        return "—";
+    }
+}
+
+function normalizeLogTags(raw) {
+    if (Array.isArray(raw)) {
+        return raw.map(tag => tag.trim()).filter(Boolean);
+    }
+    if (typeof raw === "string") {
+        return raw.split(",").map(tag => tag.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+function formatDateInputValue(timestamp) {
+    if (!timestamp) return "";
+    try {
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const pad = (num) => String(num).padStart(2, "0");
+        const year = date.getFullYear();
+        const month = pad(date.getMonth() + 1);
+        const day = pad(date.getDate());
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        return "";
+    }
+}
+
+function parseDateInput(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return Timestamp.fromDate(date);
 }
 
 // GENERIC DELETE FUNCTION
@@ -1340,7 +1805,35 @@ document.getElementById("stack-form")?.addEventListener("submit", async(e) => {
     e.preventDefault();
     const data = { name: document.getElementById("s-name").value.toUpperCase(), category: document.getElementById("s-category").value, created_at: serverTimestamp() };
     await addDoc(collection(db, "tech_stack"), data);
-    e.target.reset();
+    document.getElementById("stack-form").reset();
+});
+
+statsForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const valueInput = document.getElementById("stat-value");
+    const labelInput = document.getElementById("stat-label");
+    const orderInput = document.getElementById("stat-order");
+    const submitBtn = statsForm.querySelector("button[type='submit']");
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "PUBLISHING...";
+
+    try {
+        const docData = {
+            value: valueInput.value.trim(),
+            label: labelInput.value.trim().toUpperCase(),
+            order: Number(orderInput.value) || 0,
+            created_at: serverTimestamp()
+        };
+        await addDoc(collection(db, "stats"), docData);
+        statsForm.reset();
+        orderInput.value = docData.order;
+    } catch (error) {
+        alert("FAILED TO ADD STAT: " + error.message);
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = "PUBLISH CARD";
 });
 
 // ADD EXP FORM
@@ -1362,7 +1855,31 @@ document.getElementById("exp-form")?.addEventListener("submit", async(e) => {
 // ADD LOG FORM
 document.getElementById("log-form")?.addEventListener("submit", async(e) => {
     e.preventDefault();
-    const data = { message: document.getElementById("l-msg").value, tags: document.getElementById("l-tags").value.toUpperCase(), created_at: serverTimestamp() };
+    const messageEl = document.getElementById("l-msg");
+    const createdEl = document.getElementById("l-created-at");
+    const updatedEl = document.getElementById("l-updated-at");
+    const nowTimestamp = serverTimestamp();
+    const stackSelection = getSelectedLogStack();
+    const data = {
+        message: messageEl.value.trim(),
+        tags: stackSelection.length ? stackSelection : ["SYSTEM"],
+        created_at: parseDateInput(createdEl?.value) || nowTimestamp,
+        updated_at: parseDateInput(updatedEl?.value) || nowTimestamp
+    };
     await addDoc(collection(db, "dev_logs"), data);
     e.target.reset();
+    resetLogStackPickerSelection();
 });
+
+function resetLogStackPickerSelection() {
+    const container = document.getElementById("log-stack-options");
+    if (!container) return;
+    container.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        cb.checked = false;
+    });
+    container.querySelectorAll('.dropdown-option').forEach((option) => option.classList.remove('selected'));
+    const countDisplay = document.getElementById("log-stack-selected-count");
+    if (countDisplay) countDisplay.textContent = "Select stack";
+    const hiddenInput = document.getElementById("log-stack-hidden");
+    if (hiddenInput) hiddenInput.value = "";
+}

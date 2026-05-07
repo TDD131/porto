@@ -30,10 +30,11 @@
         <div class="nav-inner">
             <a class="logo" href="#hero" aria-label="Home">Tristan Davin Dakara</a>
             <ul class="nav-links">
-                <li><a href="#projects">Work</a></li>
                 <li><a href="#about">About</a></li>
                 <li><a href="#stack">Services</a></li>
                 <li><a href="#experience">Experience</a></li>
+                <li><a href="#logs">Logs</a></li>
+                <li><a href="#projects">Work</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
             <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme" aria-pressed="false"></button>
@@ -47,10 +48,11 @@
 
     <!-- Mobile Nav Overlay -->
     <div class="mobile-nav-overlay" id="mobile-nav">
-        <a href="#projects" class="mobile-nav-link">Work</a>
         <a href="#about" class="mobile-nav-link">About</a>
         <a href="#stack" class="mobile-nav-link">Services</a>
         <a href="#experience" class="mobile-nav-link">Experience</a>
+        <a href="#logs" class="mobile-nav-link">Logs</a>
+        <a href="#projects" class="mobile-nav-link">Work</a>
         <a href="#contact" class="mobile-nav-link">Contact</a>
     </div>
 
@@ -100,7 +102,7 @@
                     <p>I’m Tristan Davin Dakara, a technical game developer focused on robust gameplay systems and production-ready engineering. I bridge low-level engine constraints with high-level design intent to ship features that feel good and run fast.</p>
                     <p>My current focus is performance-driven architecture, render pipeline optimization, and modular interaction systems designed for real team workflows.</p>
                 </div>
-                <div class="stats-grid">
+                <div id="stats-grid" class="stats-grid">
                     <div class="stat-box">
                         <h3>1+</h3>
                         <p>YEARS EXP</p>
@@ -145,6 +147,20 @@
                         <div class="timeline" id="experience-container">
                     <div class="loader" style="color: var(--text-dim); text-align: center;">> SYNCING_TIMELINE...</div>
                 </div>
+        </div>
+    </section>
+
+    <!-- Dev Logs -->
+    <section id="logs">
+        <div class="container section-layout">
+            <div class="section-title">
+                <div class="section-kicker">Dev Logs</div>
+                <h2>Realtime build notes.</h2>
+                <div class="line"></div>
+            </div>
+            <div class="devlog-grid" id="devlogs-container">
+                <div class="loader" style="color: var(--text-dim); text-align:center;">// STREAM_CONNECT...</div>
+            </div>
         </div>
     </section>
 
@@ -234,7 +250,18 @@
                     try { url = new URL(link.href, window.location.href); } catch (err) { return; }
                     if (url.origin !== window.location.origin) return;
                     if (link.target && link.target !== '_self') return;
-                    if (url.pathname === window.location.pathname && url.hash) return;
+
+                    // Handle hash links (navbar clicks) with smooth scroll
+                    if (url.pathname === window.location.pathname && url.hash) {
+                        e.preventDefault();
+                        var target = document.querySelector(url.hash);
+                        if (target) {
+                            target.scrollIntoView({ behavior: 'smooth' });
+                        }
+                        return;
+                    }
+
+                    // Handle page navigation
                     e.preventDefault();
                     document.body.classList.add('page-leave');
                     setTimeout(function() {

@@ -9,12 +9,21 @@
       "source": "/admin.html",
       "destination": "/admin",
       "permanent": true
+    },
+    {
+      "source": "/model.html",
+      "destination": "/model",
+      "permanent": true
     }
   ],
   "rewrites": [
     {
       "source": "/admin",
       "destination": "/admin.html"
+    },
+    {
+      "source": "/model/:id",
+      "destination": "/model.html?id=:id"
     }
   ]
 }

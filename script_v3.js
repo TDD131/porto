@@ -1,5 +1,5 @@
 import { db } from "./js/firebase-config.js";
-import { collection, getDocs, query, orderBy, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { collection, getDocs, query, orderBy, limit, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import Lenis from "https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/+esm";
 
 /* ... (Lenis and Canvas code remains same) ... */
@@ -15,6 +15,101 @@ function normalizeStack(value) {
     return [];
 }
 
+function normalizeLogTags(raw) {
+    let tags = [];
+    if (Array.isArray(raw)) {
+        tags = raw.map(tag => tag.trim()).filter(Boolean);
+    } else if (typeof raw === "string") {
+        tags = raw.split(",").map(tag => tag.trim()).filter(Boolean);
+    }
+    return tags.length ? tags : ["SYSTEM"];
+}
+
+// 4. DEV LOGS
+async function loadDevLogs() {
+    const container = document.getElementById("devlogs-container");
+    if (!container) return;
+
+    try {
+        const q = query(collection(db, "dev_logs"), orderBy("created_at", "desc"), limit(6));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            container.innerHTML = `<div class="devlog-empty">// NOTHING DEPLOYED YET</div>`;
+            return;
+        }
+
+        const html = snapshot.docs.map((docSnap) => {
+            const data = docSnap.data();
+            const tags = normalizeLogTags(data.tags);
+            const createdLabel = formatLogTimestamp(data.created_at);
+            const updatedLabel = data.updated_at ? formatLogTimestamp(data.updated_at) : null;
+
+            return `
+                <article class="devlog-card">
+                    <div class="devlog-meta">
+                        <div class="devlog-timeblock">
+                            <span class="devlog-time">${escapeHtml(createdLabel)}</span>
+                            ${updatedLabel ? `<span class="devlog-updated">Edited ${escapeHtml(updatedLabel)}</span>` : ""}
+                        </div>
+                        <div class="devlog-tags">
+                            ${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join("")}
+                        </div>
+                    </div>
+                    <p class="devlog-message">${escapeHtml(data.message || "Untitled update")}</p>
+                </article>
+            `;
+        }).join("");
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error("Dev Logs Error", error);
+        container.innerHTML = `<div class="devlog-empty">// FAILED_TO_LOAD_LOGS</div>`;
+    }
+}
+
+// 2b. STATS GRID
+async function loadStats() {
+    const grid = document.getElementById("stats-grid");
+    if (!grid) return;
+
+    const fallback = [
+        { value: "1+", label: "YEARS EXP" },
+        { value: "C#", label: "CORE LANGS" },
+        { value: "6+", label: "SHIPS" }
+    ];
+
+    try {
+        const q = query(collection(db, "stats"), orderBy("order"));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            grid.innerHTML = ""; // No stats configured, show nothing
+            return;
+        }
+
+        const statsData = snapshot.docs.map(docSnap => ({
+            value: docSnap.data().value || "-",
+            label: (docSnap.data().label || "").toUpperCase()
+        }));
+
+        grid.innerHTML = statsData.map(stat => `
+            <div class="stat-box">
+                <h3>${escapeHtml(stat.value)}</h3>
+                <p>${escapeHtml(stat.label)}</p>
+            </div>
+        `).join("");
+    } catch (error) {
+        console.error("Failed to load stats", error);
+        grid.innerHTML = fallback.map(stat => `
+            <div class="stat-box">
+                <h3>${escapeHtml(stat.value)}</h3>
+                <p>${escapeHtml(stat.label)}</p>
+            </div>
+        `).join("");
+    }
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -22,6 +117,17 @@ function escapeHtml(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function formatLogTimestamp(timestamp) {
+    if (!timestamp) return "Just now";
+    let date;
+    try {
+        date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    } catch (error) {
+        date = new Date();
+    }
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function setupProjectDescriptionToggles(container) {
@@ -129,7 +235,7 @@ async function loadProjects(filterType = "ALL") {
                             let targetTarget = "_blank";
                             
                             if (data.type === "3D Model" || data.type === "Model") {
-                                targetLink = `model.html?id=${data.id}`;
+                                targetLink = `model/id=${data.id}`;
                                 targetTarget = "_self"; // Open in same tab
                             }
                             
@@ -334,9 +440,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const isLight = document.documentElement.getAttribute("data-theme") === "light";
             toggle.setAttribute("aria-pressed", isLight ? "true" : "false");
             toggle.setAttribute("aria-label", isLight ? "Switch to dark mode" : "Switch to light mode");
-            toggle.innerHTML = isLight
+            toggle.innerHTML = `<div class="icon-wrapper">${isLight
                 ? '<iconify-icon icon="lucide:moon" aria-hidden="true"></iconify-icon>'
-                : '<iconify-icon icon="lucide:sun" aria-hidden="true"></iconify-icon>';
+                : '<iconify-icon icon="lucide:sun" aria-hidden="true"></iconify-icon>'}</div>`;
         };
 
         renderToggle();
@@ -348,9 +454,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    loadStats();
     loadTechStack();
     loadProjects();
     loadExperience();
+    loadDevLogs();
 });
 
 /* 

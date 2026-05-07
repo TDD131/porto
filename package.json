@@ -1,5 +1,11 @@
 {
   "devDependencies": {
-    "firebase-tools": "^15.5.1"
+    "firebase-tools": "^15.17.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "scripts": {
+    "dev": "node server.js"
   }
 }
