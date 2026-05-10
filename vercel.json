@@ -22,6 +22,10 @@
       "destination": "/admin.html"
     },
     {
+      "source": "/model",
+      "destination": "/model.html"
+    },
+    {
       "source": "/model/:id",
       "destination": "/model.html?id=:id"
     }
