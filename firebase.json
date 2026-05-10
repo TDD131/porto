@@ -1,1 +1,10 @@
-{}
+{
+  "hosting": {
+    "rewrites": [
+      {
+        "source": "/model",
+        "destination": "/model.html"
+      }
+    ]
+  }
+}

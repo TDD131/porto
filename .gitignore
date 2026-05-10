@@ -1,5 +1,10 @@
 .vercel
+.firebase
 *_creds_*.txt
-admin_creds_DO_NOT_SHARE.txt
 node_modules/
 Z-StartServer.cmd
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db

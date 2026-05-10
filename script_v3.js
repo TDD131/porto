@@ -235,7 +235,7 @@ async function loadProjects(filterType = "ALL") {
                             let targetTarget = "_blank";
                             
                             if (data.type === "3D Model" || data.type === "Model") {
-                                targetLink = `model/id=${data.id}`;
+                                targetLink = `model?id=${data.id}`;
                                 targetTarget = "_self"; // Open in same tab
                             }
                             
