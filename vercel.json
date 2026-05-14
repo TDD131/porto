@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60
+    }
+  },
   "redirects": [
     {
       "source": "/index.html",
@@ -17,6 +22,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/view/:projectId",
+      "destination": "/api/view/[projectId]"
+    },
     {
       "source": "/admin",
       "destination": "/admin.html"
