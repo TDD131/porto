@@ -98,7 +98,65 @@ app.post('/api/upload-cloudinary', upload.single('file'), async (req, res) => {
     }
 });
 
-// GitHub Releases upload endpoint (for .blend files)
+// GitHub Releases URL preparation endpoint (two-step upload: get URL, client uploads directly)
+app.post('/api/upload-github-url', express.json(), async (req, res) => {
+    try {
+        const { githubToken, githubOwner, githubRepo, githubTag, fileName } = req.body;
+
+        if (!githubToken || !githubOwner || !githubRepo || !githubTag || !fileName) {
+            return res.status(400).json({ error: 'Missing GitHub configuration or fileName.' });
+        }
+
+        // Get the release by tag
+        const releaseResp = await fetch(
+            `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases/tags/${githubTag}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${githubToken}`,
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28'
+                }
+            }
+        );
+
+        if (!releaseResp.ok) {
+            const errData = await releaseResp.json().catch(() => ({}));
+            if (releaseResp.status === 404) {
+                return res.status(404).json({ error: `Release with tag "${githubTag}" not found. Create it on GitHub first.` });
+            }
+            return res.status(releaseResp.status).json({ error: errData.message || 'Failed to get release' });
+        }
+
+        const release = await releaseResp.json();
+        const releaseId = release.id;
+
+        // Delete existing asset with same name if it exists
+        const existingAsset = release.assets?.find(a => a.name === fileName);
+        if (existingAsset) {
+            await fetch(
+                `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases/assets/${existingAsset.id}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${githubToken}`,
+                        'Accept': 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28'
+                    }
+                }
+            );
+        }
+
+        const uploadUrl = `https://uploads.github.com/repos/${githubOwner}/${githubRepo}/releases/${releaseId}/assets?name=${encodeURIComponent(fileName)}`;
+        const downloadUrl = `https://github.com/${githubOwner}/${githubRepo}/releases/download/${githubTag}/${encodeURIComponent(fileName)}`;
+
+        res.json({ uploadUrl, downloadUrl, token: githubToken });
+    } catch (error) {
+        console.error('GitHub URL prep error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GitHub Releases upload endpoint (for .blend files) — legacy single-step proxy
 app.post('/api/upload-github', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {

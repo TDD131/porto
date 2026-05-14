@@ -684,19 +684,59 @@ function initBlendUpload() {
         const updateBar = createProgressBar(statusEl);
 
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('githubToken', GITHUB_TOKEN);
-            formData.append('githubOwner', GITHUB_OWNER);
-            formData.append('githubRepo', GITHUB_REPO);
-            formData.append('githubTag', GITHUB_RELEASE_TAG);
-
-            const data = await uploadWithProgress('/api/upload-github', formData, (pct) => {
-                updateBar(pct);
-                uploadBtn.textContent = `UPLOADING ${pct}%`;
+            // Two-step upload: get the upload URL from server, then upload directly to GitHub.
+            // This avoids Vercel's 4.5MB body size limit for serverless functions.
+            const urlResp = await fetch('/api/upload-github-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    githubToken: GITHUB_TOKEN,
+                    githubOwner: GITHUB_OWNER,
+                    githubRepo: GITHUB_REPO,
+                    githubTag: GITHUB_RELEASE_TAG,
+                    fileName: file.name
+                })
             });
 
-            urlInput.value = data.download_url;
+            const urlData = await urlResp.json();
+            if (!urlResp.ok) throw new Error(urlData.error || `HTTP ${urlResp.status}`);
+
+            // Upload directly to GitHub using XHR for progress tracking
+            const data = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', urlData.uploadUrl);
+                xhr.setRequestHeader('Authorization', `Bearer ${urlData.token}`);
+                xhr.setRequestHeader('Accept', 'application/vnd.github+json');
+                xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+                xhr.setRequestHeader('X-GitHub-Api-Version', '2022-11-28');
+
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const pct = Math.round((e.loaded / e.total) * 100);
+                        updateBar(pct);
+                        uploadBtn.textContent = `UPLOADING ${pct}%`;
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    try {
+                        const resp = JSON.parse(xhr.responseText);
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve(resp);
+                        } else {
+                            reject(new Error(resp.message || `GitHub upload HTTP ${xhr.status}`));
+                        }
+                    } catch (e) {
+                        reject(new Error('Invalid GitHub response'));
+                    }
+                });
+
+                xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+                xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+                xhr.send(file);
+            });
+
+            urlInput.value = urlData.downloadUrl;
             const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
             statusEl.innerHTML = `<span style="color: #00ff88;">✓ UPLOADED (${sizeMB} MB) — ${data.name}</span>`;
         } catch (err) {
@@ -1308,6 +1348,14 @@ function switchToSection(targetId) {
     if (targetBtn) targetBtn.classList.add("active");
     if (targetSection) targetSection.style.display = "block";
     if (targetId === "section-stack") loadStack();
+    // Re-render dashboard charts when switching back — they may have been
+    // rendered while the section was hidden (display:none) causing 0-size canvases.
+    if (targetId === "section-dashboard") {
+        const ctxType = document.getElementById('dash-chart-type');
+        const ctxMonth = document.getElementById('dash-chart-month');
+        if (ctxType?._chartInstance) ctxType._chartInstance.resize();
+        if (ctxMonth?._chartInstance) ctxMonth._chartInstance.resize();
+    }
     localStorage.setItem('admin_active_section', targetId);
 }
 
@@ -1909,19 +1957,58 @@ function setupEditBlendUpload(projectId) {
         const updateBar = createProgressBar(statusEl);
 
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('githubToken', GITHUB_TOKEN);
-            formData.append('githubOwner', GITHUB_OWNER);
-            formData.append('githubRepo', GITHUB_REPO);
-            formData.append('githubTag', GITHUB_RELEASE_TAG);
-
-            const data = await uploadWithProgress('/api/upload-github', formData, (pct) => {
-                updateBar(pct);
-                uploadBtn.textContent = `UPLOADING ${pct}%`;
+            // Two-step upload: get URL from server, then upload directly to GitHub
+            const urlResp = await fetch('/api/upload-github-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    githubToken: GITHUB_TOKEN,
+                    githubOwner: GITHUB_OWNER,
+                    githubRepo: GITHUB_REPO,
+                    githubTag: GITHUB_RELEASE_TAG,
+                    fileName: file.name
+                })
             });
 
-            urlInput.value = data.download_url;
+            const urlData = await urlResp.json();
+            if (!urlResp.ok) throw new Error(urlData.error || `HTTP ${urlResp.status}`);
+
+            // Upload directly to GitHub
+            const data = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', urlData.uploadUrl);
+                xhr.setRequestHeader('Authorization', `Bearer ${urlData.token}`);
+                xhr.setRequestHeader('Accept', 'application/vnd.github+json');
+                xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+                xhr.setRequestHeader('X-GitHub-Api-Version', '2022-11-28');
+
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const pct = Math.round((e.loaded / e.total) * 100);
+                        updateBar(pct);
+                        uploadBtn.textContent = `UPLOADING ${pct}%`;
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    try {
+                        const resp = JSON.parse(xhr.responseText);
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve(resp);
+                        } else {
+                            reject(new Error(resp.message || `GitHub upload HTTP ${xhr.status}`));
+                        }
+                    } catch (e) {
+                        reject(new Error('Invalid GitHub response'));
+                    }
+                });
+
+                xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+                xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+                xhr.send(file);
+            });
+
+            urlInput.value = urlData.downloadUrl;
             const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
             statusEl.innerHTML = `<span style="color: #00ff88;">✓ UPLOADED (${sizeMB} MB) — ${data.name}</span>`;
         } catch (err) {
