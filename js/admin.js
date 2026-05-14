@@ -1,15 +1,25 @@
 import { auth, db, storage } from "./firebase-config.js";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, setDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, setDoc, Timestamp, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-// CLOUDINARY CONFIG - Session Storage
-let CLOUD_NAME = sessionStorage.getItem('cloudinary_name') || '';
-let UPLOAD_PRESET = sessionStorage.getItem('cloudinary_preset') || '';
+// CLOUDINARY CONFIG - Will be loaded from Firestore per user
+let CLOUDINARY_CLOUD_NAME = '';
+let CLOUDINARY_API_KEY = '';
+let CLOUDINARY_API_SECRET = '';
 
-// API Keys - Session Storage
-let GEMINI_API_KEY = sessionStorage.getItem('gemini_key') || '';
-let SKETCHFAB_API_TOKEN = sessionStorage.getItem('sketchfab_key') || '';
+// API Keys - Will be loaded from Firestore per user
+let GEMINI_API_KEY = '';
+let SKETCHFAB_API_TOKEN = '';
+
+// GitHub Config - Will be loaded from Firestore per user
+let GITHUB_TOKEN = '';
+let GITHUB_OWNER = '';
+let GITHUB_REPO = '';
+let GITHUB_RELEASE_TAG = '';
+
+// Current user ID
+let currentUserId = null;
 
 // DOM Elements
 const loginPanel = document.getElementById("login-panel");
@@ -29,78 +39,182 @@ const aiStatus = document.getElementById("ai-desc-status");
 let logStackPickerInitialized = false;
 let logStackUnsubscribe = null;
 
+// --- FIRESTORE SETTINGS MANAGEMENT ---
+async function loadUserSettings(userId) {
+    try {
+        const settingsRef = doc(db, 'admin_settings', userId);
+        const settingsSnap = await getDoc(settingsRef);
+        
+        if (settingsSnap.exists()) {
+            const data = settingsSnap.data();
+            GEMINI_API_KEY = data.gemini_key || '';
+            SKETCHFAB_API_TOKEN = data.sketchfab_token || '';
+            CLOUDINARY_CLOUD_NAME = data.cloudinary_cloud_name || '';
+            CLOUDINARY_API_KEY = data.cloudinary_api_key || '';
+            CLOUDINARY_API_SECRET = data.cloudinary_api_secret || '';
+            GITHUB_TOKEN = data.github_token || '';
+            GITHUB_OWNER = data.github_owner || '';
+            GITHUB_REPO = data.github_repo || '';
+            GITHUB_RELEASE_TAG = data.github_release_tag || '';
+            
+            console.log('Settings loaded from Firestore for user:', userId);
+            return true;
+        } else {
+            console.log('No settings found for user:', userId);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        return false;
+    }
+}
+
+async function saveUserSettings(userId) {
+    try {
+        const settingsRef = doc(db, 'admin_settings', userId);
+        await setDoc(settingsRef, {
+            gemini_key: GEMINI_API_KEY,
+            sketchfab_token: SKETCHFAB_API_TOKEN,
+            cloudinary_cloud_name: CLOUDINARY_CLOUD_NAME,
+            cloudinary_api_key: CLOUDINARY_API_KEY,
+            cloudinary_api_secret: CLOUDINARY_API_SECRET,
+            github_token: GITHUB_TOKEN,
+            github_owner: GITHUB_OWNER,
+            github_repo: GITHUB_REPO,
+            github_release_tag: GITHUB_RELEASE_TAG,
+            updated_at: serverTimestamp()
+        }, { merge: true });
+        
+        console.log('Settings saved to Firestore for user:', userId);
+        return true;
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        return false;
+    }
+}
+
+function updateUIWithSettings() {
+    const keyInput = document.getElementById('gemini-api-key');
+    const sfKeyInput = document.getElementById('sketchfab-api-token');
+    const cloudNameInput = document.getElementById('cloudinary-cloud-name');
+    const cloudKeyInput = document.getElementById('cloudinary-api-key');
+    const csecretInput = document.getElementById('cloudinary-api-secret');
+    const ghTokenInput = document.getElementById('github-token');
+    const ghOwnerInput = document.getElementById('github-owner');
+    const ghRepoInput = document.getElementById('github-repo');
+    const ghTagInput = document.getElementById('github-release-tag');
+    
+    if (keyInput) keyInput.value = GEMINI_API_KEY;
+    if (sfKeyInput) sfKeyInput.value = SKETCHFAB_API_TOKEN;
+    if (cloudNameInput) cloudNameInput.value = CLOUDINARY_CLOUD_NAME;
+    if (cloudKeyInput) cloudKeyInput.value = CLOUDINARY_API_KEY;
+    if (csecretInput) csecretInput.value = CLOUDINARY_API_SECRET;
+    if (ghTokenInput) ghTokenInput.value = GITHUB_TOKEN;
+    if (ghOwnerInput) ghOwnerInput.value = GITHUB_OWNER;
+    if (ghRepoInput) ghRepoInput.value = GITHUB_REPO;
+    if (ghTagInput) ghTagInput.value = GITHUB_RELEASE_TAG;
+    
+    // Clear validation status on load
+    document.getElementById('gemini-status').innerHTML = '';
+    document.getElementById('sketchfab-status').innerHTML = '';
+    document.getElementById('cloudinary-secret-status').innerHTML = '';
+    document.getElementById('github-token-status').innerHTML = '';
+}
+
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
     const keyInput = document.getElementById('gemini-api-key');
     const sfKeyInput = document.getElementById('sketchfab-api-token');
-    const cnameInput = document.getElementById('cloudinary-name');
-    const cpresetInput = document.getElementById('cloudinary-preset');
+    const cloudNameInput = document.getElementById('cloudinary-cloud-name');
+    const cloudKeyInput = document.getElementById('cloudinary-api-key');
+    const csecretInput = document.getElementById('cloudinary-api-secret');
     
-    if (keyInput && GEMINI_API_KEY) {
-        keyInput.value = GEMINI_API_KEY;
-        // Check cached validation status instead of re-validating
-        const cachedStatus = sessionStorage.getItem('gemini_key_valid');
-        const statusEl = document.getElementById('gemini-status');
-        if (cachedStatus === 'valid') {
-            statusEl.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID (cached)</span>';
-        } else if (cachedStatus === 'invalid') {
-            statusEl.innerHTML = '<span style="color: #ff4444;">✗ INVALID (cached)</span>';
-        }
-    }
-
-    if (sfKeyInput && SKETCHFAB_API_TOKEN) {
-        sfKeyInput.value = SKETCHFAB_API_TOKEN;
-        // Check cached validation status instead of re-validating
-        const cachedStatus = sessionStorage.getItem('sketchfab_key_valid');
-        const statusEl = document.getElementById('sketchfab-status');
-        if (cachedStatus === 'valid') {
-            statusEl.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID (cached)</span>';
-        } else if (cachedStatus === 'invalid') {
-            statusEl.innerHTML = '<span style="color: #ff4444;">✗ INVALID (cached)</span>';
-        }
-    }
-    
-    if (cnameInput && CLOUD_NAME) cnameInput.value = CLOUD_NAME;
-    if (cpresetInput && UPLOAD_PRESET) cpresetInput.value = UPLOAD_PRESET;
-
-    // Auto-save on input (no validation)
-    keyInput?.addEventListener('input', (e) => {
+    // Auto-save on input
+    keyInput?.addEventListener('input', async (e) => {
         GEMINI_API_KEY = e.target.value;
-        sessionStorage.setItem('gemini_key', GEMINI_API_KEY);
-        // Clear cached validation when key changes
-        sessionStorage.removeItem('gemini_key_valid');
+        if (currentUserId) {
+            await saveUserSettings(currentUserId);
+        }
+        // Clear validation status
         document.getElementById('gemini-status').innerHTML = '';
-        // Remove error message if exists
         const configItem = e.target.closest('.config-item');
         const existingError = configItem?.querySelector('.api-error-msg');
         if (existingError) existingError.remove();
     });
 
-    sfKeyInput?.addEventListener('input', (e) => {
+    sfKeyInput?.addEventListener('input', async (e) => {
         SKETCHFAB_API_TOKEN = e.target.value;
-        sessionStorage.setItem('sketchfab_key', SKETCHFAB_API_TOKEN);
-        // Clear cached validation when key changes
-        sessionStorage.removeItem('sketchfab_key_valid');
+        if (currentUserId) {
+            await saveUserSettings(currentUserId);
+        }
+        // Clear validation status
         document.getElementById('sketchfab-status').innerHTML = '';
-        // Remove error message if exists
         const configItem = e.target.closest('.config-item');
         const existingError = configItem?.querySelector('.api-error-msg');
         if (existingError) existingError.remove();
     });
 
-    cnameInput?.addEventListener('input', (e) => {
-        CLOUD_NAME = e.target.value;
-        sessionStorage.setItem('cloudinary_name', CLOUD_NAME);
+    cloudNameInput?.addEventListener('input', async (e) => {
+        CLOUDINARY_CLOUD_NAME = e.target.value;
+        if (currentUserId) {
+            await saveUserSettings(currentUserId);
+        }
     });
 
-    cpresetInput?.addEventListener('input', (e) => {
-        UPLOAD_PRESET = e.target.value;
-        sessionStorage.setItem('cloudinary_preset', UPLOAD_PRESET);
+    cloudKeyInput?.addEventListener('input', async (e) => {
+        CLOUDINARY_API_KEY = e.target.value;
+        if (currentUserId) {
+            await saveUserSettings(currentUserId);
+        }
+    });
+
+    csecretInput?.addEventListener('input', async (e) => {
+        CLOUDINARY_API_SECRET = e.target.value;
+        if (currentUserId) {
+            await saveUserSettings(currentUserId);
+        }
+        // Clear validation status
+        document.getElementById('cloudinary-secret-status').innerHTML = '';
+        const configItem = e.target.closest('.config-item');
+        const existingError = configItem?.querySelector('.api-error-msg');
+        if (existingError) existingError.remove();
+    });
+
+    // GitHub settings auto-save
+    const ghTokenInput = document.getElementById('github-token');
+    const ghOwnerInput = document.getElementById('github-owner');
+    const ghRepoInput = document.getElementById('github-repo');
+    const ghTagInput = document.getElementById('github-release-tag');
+
+    ghTokenInput?.addEventListener('input', async (e) => {
+        GITHUB_TOKEN = e.target.value;
+        if (currentUserId) await saveUserSettings(currentUserId);
+        document.getElementById('github-token-status').innerHTML = '';
+        const configItem = e.target.closest('.config-item');
+        const existingError = configItem?.querySelector('.api-error-msg');
+        if (existingError) existingError.remove();
+    });
+
+    ghOwnerInput?.addEventListener('input', async (e) => {
+        GITHUB_OWNER = e.target.value;
+        if (currentUserId) await saveUserSettings(currentUserId);
+    });
+
+    ghRepoInput?.addEventListener('input', async (e) => {
+        GITHUB_REPO = e.target.value;
+        if (currentUserId) await saveUserSettings(currentUserId);
+    });
+
+    ghTagInput?.addEventListener('input', async (e) => {
+        GITHUB_RELEASE_TAG = e.target.value;
+        if (currentUserId) await saveUserSettings(currentUserId);
     });
 
     // Initialize the type-switch and per-slot upload logic after DOM is ready.
     setupTypeSwitch();
     initModelViewSlots();
+    initStandardIconUpload();
+    initBlendUpload();
 });
 
 // 2b. STATS LISTENER
@@ -225,8 +339,18 @@ function handleTypeSwitch() {
 function setupTypeSwitch() {
     const typeSelect = document.getElementById('p-type');
     if (!typeSelect) return;
-    typeSelect.addEventListener('change', handleTypeSwitch);
-    // Run once on init to set correct panel state based on default value.
+
+    // Restore previously selected category from localStorage (survives page refresh).
+    const savedType = localStorage.getItem('admin_selected_category');
+    if (savedType && [...typeSelect.options].some(o => o.value === savedType)) {
+        typeSelect.value = savedType;
+    }
+
+    typeSelect.addEventListener('change', function () {
+        localStorage.setItem('admin_selected_category', this.value);
+        handleTypeSwitch.call(this);
+    });
+    // Run once on init to set correct panel state based on current value.
     handleTypeSwitch.call(typeSelect);
 }
 
@@ -256,7 +380,6 @@ window.validateGemini = async function(key) {
         
         if (resp.ok) {
             status.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID</span>';
-            sessionStorage.setItem('gemini_key_valid', 'valid');
         } else {
             const errBody = await resp.json().catch(() => ({}));
             console.error("Gemini Validation Error Details:", JSON.stringify(errBody, null, 2));
@@ -269,7 +392,6 @@ window.validateGemini = async function(key) {
             }
             
             status.innerHTML = `<span style="color: #ff4444;">✗ INVALID (${resp.status})</span>`;
-            sessionStorage.setItem('gemini_key_valid', 'invalid');
             
             // Add error message below input
             const errorDiv = document.createElement('div');
@@ -281,7 +403,6 @@ window.validateGemini = async function(key) {
     } catch (e) { 
         console.error("Gemini Connection Error:", e);
         status.innerHTML = '<span style="color: #ff4444;">ERROR</span>';
-        sessionStorage.setItem('gemini_key_valid', 'invalid');
         
         // Add error message below input
         const errorDiv = document.createElement('div');
@@ -310,10 +431,8 @@ window.validateSketchfab = async function(token) {
         });
         if (resp.ok) {
             status.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID</span>';
-            sessionStorage.setItem('sketchfab_key_valid', 'valid');
         } else {
             status.innerHTML = '<span style="color: #ff4444;">✗ INVALID</span>';
-            sessionStorage.setItem('sketchfab_key_valid', 'invalid');
             
             // Add error message below input
             const errorDiv = document.createElement('div');
@@ -324,9 +443,100 @@ window.validateSketchfab = async function(token) {
         }
     } catch (e) { 
         status.innerHTML = '<span style="color: #ff4444;">ERROR</span>'; 
-        sessionStorage.setItem('sketchfab_key_valid', 'invalid');
         
         // Add error message below input
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'api-error-msg';
+        errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
+        errorDiv.textContent = 'Connection error. Check your network.';
+        configItem.appendChild(errorDiv);
+    }
+}
+
+window.validateCloudinarySecret = async function() {
+    const status = document.getElementById('cloudinary-secret-status');
+    const secret = CLOUDINARY_API_SECRET;
+    const inputRow = document.getElementById('cloudinary-api-secret').parentElement;
+    const configItem = inputRow.closest('.config-item') || inputRow;
+    
+    // Remove existing error message
+    const existingError = configItem.querySelector('.api-error-msg');
+    if (existingError) existingError.remove();
+    
+    if (!secret) { 
+        status.innerHTML = ''; 
+        return; 
+    }
+    
+    status.innerHTML = '<span style="color: #555;">CHECKING...</span>';
+    
+    try {
+        // Validate by checking format and length
+        // Cloudinary API Secret is typically 32 characters alphanumeric
+        const secretPattern = /^[a-zA-Z0-9_-]{20,}$/;
+        
+        if (secretPattern.test(secret)) {
+            status.innerHTML = '<span style="color: #00ff88; font-weight: bold;">✓ VALID FORMAT</span>';
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'api-error-msg';
+            infoDiv.style.cssText = 'color: #f5a623; font-size: 0.75rem; margin-top: 5px;';
+            infoDiv.textContent = 'Secret format valid. Full validation happens on actual upload.';
+            configItem.appendChild(infoDiv);
+        } else {
+            status.innerHTML = '<span style="color: #ff4444;">✗ INVALID FORMAT</span>';
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'api-error-msg';
+            errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
+            errorDiv.textContent = 'API Secret should be at least 20 alphanumeric characters.';
+            configItem.appendChild(errorDiv);
+        }
+    } catch (e) { 
+        console.error("Cloudinary Secret Validation Error:", e);
+        status.innerHTML = '<span style="color: #ff4444;">ERROR</span>'; 
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'api-error-msg';
+        errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
+        errorDiv.textContent = 'Validation error. Check your connection.';
+        configItem.appendChild(errorDiv);
+    }
+}
+
+// --- GITHUB TOKEN VALIDATION ---
+window.validateGithubToken = async function() {
+    const status = document.getElementById('github-token-status');
+    const inputRow = document.getElementById('github-token').parentElement;
+    const configItem = inputRow.closest('.config-item') || inputRow;
+    
+    const existingError = configItem.querySelector('.api-error-msg');
+    if (existingError) existingError.remove();
+    
+    if (!GITHUB_TOKEN) { status.innerHTML = ''; return; }
+    status.innerHTML = '<span style="color: #555;">CHECKING...</span>';
+    
+    try {
+        const resp = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github+json'
+            }
+        });
+        
+        if (resp.ok) {
+            const user = await resp.json();
+            status.innerHTML = `<span style="color: #00ff88; font-weight: bold;">✓ ${user.login}</span>`;
+        } else {
+            status.innerHTML = '<span style="color: #ff4444;">✗ INVALID</span>';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'api-error-msg';
+            errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
+            errorDiv.textContent = 'Invalid token or expired. Generate a new one.';
+            configItem.appendChild(errorDiv);
+        }
+    } catch (e) {
+        status.innerHTML = '<span style="color: #ff4444;">ERROR</span>';
         const errorDiv = document.createElement('div');
         errorDiv.className = 'api-error-msg';
         errorDiv.style.cssText = 'color: #ff4444; font-size: 0.75rem; margin-top: 5px;';
@@ -339,7 +549,7 @@ window.validateSketchfab = async function(token) {
 /**
  * Sets up a single view angle upload slot.
  * On file change: shows local preview immediately, uploads to Cloudinary, auto-fills URL input,
- * and if this is the 'front' slot, also auto-fills the hidden p-icon field for Firestore.
+ * and updates the cover image if this angle's star is active.
  * @param {string} angleKey - One of: front, back, left, right, top, bottom
  */
 function setupModelViewSlot(angleKey) {
@@ -367,8 +577,9 @@ function setupModelViewSlot(angleKey) {
             statusEl.textContent  = 'UPLOADED';
             statusEl.className    = 'slot-status done';
 
-            // Auto-set icon_url from front view for Firestore thumbnail.
-            if (angleKey === 'front') {
+            // If this angle's star is active, update the icon_url
+            const starBtn = document.querySelector(`.star-cover-btn[data-angle="${angleKey}"]`);
+            if (starBtn && starBtn.classList.contains('active')) {
                 const iconInput = document.getElementById('p-icon');
                 if (iconInput) iconInput.value = cloudUrl;
             }
@@ -383,6 +594,155 @@ function setupModelViewSlot(angleKey) {
 
 function initModelViewSlots() {
     ['front', 'back', 'left', 'right', 'top', 'bottom'].forEach(setupModelViewSlot);
+}
+
+/**
+ * Auto-uploads the standard icon file (for Game/Web/Software) immediately on selection,
+ * so the Cloudinary URL is stored in the text input and survives page refreshes.
+ */
+function initStandardIconUpload() {
+    const fileInput = document.getElementById('p-icon-file');
+    const urlInput = document.getElementById('p-icon');
+    if (!fileInput || !urlInput) return;
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        fileInput.disabled = true;
+        const originalPlaceholder = urlInput.placeholder;
+        urlInput.placeholder = 'UPLOADING...';
+
+        try {
+            const cloudUrl = await uploadToCloudinary(file);
+            urlInput.value = cloudUrl;
+            urlInput.placeholder = originalPlaceholder;
+        } catch (err) {
+            urlInput.placeholder = originalPlaceholder;
+            alert('ICON UPLOAD FAILED: ' + err.message);
+        } finally {
+            fileInput.disabled = false;
+        }
+    });
+}
+
+/**
+ * Handles .blend file upload to GitHub Releases via server proxy.
+ */
+function initBlendUpload() {
+    const uploadBtn = document.getElementById('btn-upload-blend');
+    const fileInput = document.getElementById('p-blend-file');
+    const urlInput = document.getElementById('p-blend-url');
+    const statusEl = document.getElementById('blend-upload-status');
+    if (!uploadBtn || !fileInput) return;
+
+    uploadBtn.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Please select a .blend file first.');
+            return;
+        }
+
+        if (!file.name.toLowerCase().endsWith('.blend')) {
+            alert('Only .blend files are allowed.');
+            return;
+        }
+
+        if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO || !GITHUB_RELEASE_TAG) {
+            alert('GitHub configuration incomplete. Check the config section above.');
+            return;
+        }
+
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'UPLOADING...';
+        statusEl.innerHTML = '<span style="color: var(--accent);">Uploading to GitHub Releases...</span>';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('githubToken', GITHUB_TOKEN);
+            formData.append('githubOwner', GITHUB_OWNER);
+            formData.append('githubRepo', GITHUB_REPO);
+            formData.append('githubTag', GITHUB_RELEASE_TAG);
+
+            const resp = await fetch('/api/upload-github', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                throw new Error(data.error || 'Upload failed');
+            }
+
+            urlInput.value = data.download_url;
+            const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
+            statusEl.innerHTML = `<span style="color: #00ff88;">✓ UPLOADED (${sizeMB} MB) — ${data.name}</span>`;
+        } catch (err) {
+            console.error('Blend upload error:', err);
+            statusEl.innerHTML = `<span style="color: #ff4444;">✗ FAILED: ${err.message}</span>`;
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'UPLOAD .BLEND';
+        }
+    });
+}
+
+// --- COVER IMAGE SELECTION ---
+/**
+ * Sets the selected angle as the cover image (icon_url).
+ * Only one star can be active at a time.
+ * @param {string} angleKey - The angle to set as cover (front, back, left, right, top, bottom)
+ */
+window.setCoverImage = function(angleKey) {
+    // Remove active class from all star buttons
+    document.querySelectorAll('.star-cover-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Add active class to clicked button
+    const clickedBtn = document.querySelector(`.star-cover-btn[data-angle="${angleKey}"]`);
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    }
+    
+    // Update the hidden icon input with the URL from the selected angle
+    const selectedUrlInput = document.getElementById(`url-${angleKey}`);
+    const iconInput = document.getElementById('p-icon');
+    
+    if (selectedUrlInput && iconInput) {
+        iconInput.value = selectedUrlInput.value;
+        console.log(`Cover image set to ${angleKey}: ${selectedUrlInput.value}`);
+    }
+}
+
+/**
+ * Sets the selected angle as the cover image in EDIT form.
+ * Only one star can be active at a time per project.
+ * @param {string} angleKey - The angle to set as cover
+ * @param {string} projectId - The project ID being edited
+ */
+window.setEditCoverImage = function(angleKey, projectId) {
+    // Remove active class from all star buttons in this edit form
+    document.querySelectorAll(`.star-cover-btn[data-project-id="${projectId}"]`).forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Add active class to clicked button
+    const clickedBtn = document.querySelector(`.star-cover-btn[data-angle="${angleKey}"][data-project-id="${projectId}"]`);
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    }
+    
+    // Update the icon input with the URL from the selected angle
+    const selectedUrlInput = document.getElementById(`edit-url-${angleKey}-${projectId}`);
+    const iconInput = document.querySelector(`#edit-slot-${projectId} .edit-p-icon`);
+    
+    if (selectedUrlInput && iconInput) {
+        iconInput.value = selectedUrlInput.value;
+        console.log(`Edit cover image set to ${angleKey}: ${selectedUrlInput.value}`);
+    }
 }
 
 // --- AI GENERATION ---
@@ -474,10 +834,17 @@ The description should be briefly highlighting the core features and your role. 
 });
 
 // --- AUTHENTICATION ---
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     if (user) {
+        currentUserId = user.uid;
+        
+        // Load user settings from Firestore
+        await loadUserSettings(currentUserId);
+        updateUIWithSettings();
+        
         loginPanel.style.display = "none";
         dashboard.style.display = "block";
+        loadDashboard();
         subscribeToProjects();
         subscribeToStats();
         subscribeToExperience();
@@ -485,9 +852,21 @@ onAuthStateChanged(auth, (user) => {
         initLogStackPicker();
         populateStackPicker(); // Populate tech stack pills from DB on login.
     } else {
+        currentUserId = null;
         loginPanel.style.display = "block";
         dashboard.style.display = "none";
         cleanupLogStackPicker();
+        
+        // Clear settings on logout
+        GEMINI_API_KEY = '';
+        SKETCHFAB_API_TOKEN = '';
+        CLOUDINARY_CLOUD_NAME = '';
+        CLOUDINARY_API_KEY = '';
+        CLOUDINARY_API_SECRET = '';
+        GITHUB_TOKEN = '';
+        GITHUB_OWNER = '';
+        GITHUB_REPO = '';
+        GITHUB_RELEASE_TAG = '';
     }
 });
 
@@ -970,11 +1349,194 @@ async function handleSketchfabUpload(file, modelName, description) {
 
 // --- DATABASE OPERATIONS ---
 
+async function loadDashboard() {
+    const collections = [
+        { id: 'projects',   elId: 'dash-count-projects' },
+        { id: 'experience', elId: 'dash-count-exp' },
+        { id: 'dev_logs',   elId: 'dash-count-logs' },
+        { id: 'tech_stack', elId: 'dash-count-stack' },
+        { id: 'stats',      elId: 'dash-count-stats' },
+    ];
+
+    for (const { id, elId } of collections) {
+        try {
+            const snap = await getDocs(collection(db, id));
+            const el = document.getElementById(elId);
+            if (el) el.textContent = snap.size;
+
+            // Count pinned projects
+            if (id === 'projects') {
+                const pinned = snap.docs.filter(d => d.data().pinned).length;
+                const pinnedEl = document.getElementById('dash-count-pinned');
+                if (pinnedEl) pinnedEl.textContent = pinned;
+
+                const allProjects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // Recent projects list
+                const recentEl = document.getElementById('dash-recent-projects');
+                if (recentEl) {
+                    const sorted = allProjects
+                        .slice()
+                        .sort((a, b) => {
+                            const aT = a.created_at?.toMillis?.() ?? 0;
+                            const bT = b.created_at?.toMillis?.() ?? 0;
+                            return bT - aT;
+                        })
+                        .slice(0, 5);
+
+                    if (sorted.length === 0) {
+                        recentEl.innerHTML = '<p style="color: var(--text-dim); font-family: var(--font-code); font-size: 0.8rem;">No projects yet.</p>';
+                    } else {
+                        recentEl.innerHTML = sorted.map(data => {
+                            const date = data.created_at?.toDate?.();
+                            const dateStr = date ? date.toLocaleDateString('id-ID') : '—';
+                            return `
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border: 1px solid var(--border-dim); border-radius: 12px; background: rgba(255,255,255,0.02);">
+                                    <div>
+                                        <span style="font-weight: 600; color: var(--text-primary);">${data.title || 'Untitled'}</span>
+                                        <span style="font-family: var(--font-code); font-size: 0.65rem; color: var(--text-dim); margin-left: 10px;">${data.type || ''}</span>
+                                        ${data.pinned ? '<span style="font-family: var(--font-code); font-size: 0.6rem; color: #f5a623; margin-left: 8px;">★ PINNED</span>' : ''}
+                                    </div>
+                                    <span style="font-family: var(--font-code); font-size: 0.7rem; color: var(--text-dim);">${dateStr}</span>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+
+                // Most viewed projects
+                const mostViewedEl = document.getElementById('dash-most-viewed');
+                if (mostViewedEl) {
+                    const withViews = allProjects
+                        .filter(p => p.view_count != null && p.view_count > 0)
+                        .sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
+                        .slice(0, 5);
+
+                    if (withViews.length === 0) {
+                        mostViewedEl.innerHTML = '<p style="color: var(--text-dim); font-family: var(--font-code); font-size: 0.75rem;">No view data yet.<br>Add view_count to projects.</p>';
+                    } else {
+                        const maxViews = withViews[0].view_count || 1;
+                        mostViewedEl.innerHTML = withViews.map((p, i) => {
+                            const pct = Math.round(((p.view_count || 0) / maxViews) * 100);
+                            return `
+                                <div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                        <span style="font-size:0.8rem; color:var(--text-primary); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:65%;">${p.title || 'Untitled'}</span>
+                                        <span style="font-family:var(--font-code); font-size:0.7rem; color:var(--text-dim);">${(p.view_count || 0).toLocaleString()}</span>
+                                    </div>
+                                    <div style="height:4px; background:rgba(255,255,255,0.06); border-radius:999px; overflow:hidden;">
+                                        <div style="height:100%; width:${pct}%; background:var(--text-primary); border-radius:999px; opacity:${0.4 + (0.6 * (1 - i / withViews.length))};"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+
+                // Charts
+                renderDashboardCharts(allProjects);
+            }
+        } catch (err) {
+            console.warn(`Dashboard count failed for ${id}:`, err);
+        }
+    }
+}
+
+function renderDashboardCharts(projects) {
+    const textColor = 'rgba(245,242,234,0.5)';
+    const gridColor = 'rgba(245,242,234,0.06)';
+    const typeColors = {
+        'Game':     'rgba(245,242,234,0.85)',
+        '3D Model': 'rgba(245,242,234,0.55)',
+        'Web':      'rgba(245,242,234,0.35)',
+        'Software': 'rgba(245,242,234,0.2)',
+    };
+
+    // ── Chart 1: By Type (Doughnut) ──────────────────────────────
+    const typeCounts = {};
+    projects.forEach(p => {
+        const t = p.type || 'Other';
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+    });
+    const typeLabels = Object.keys(typeCounts);
+    const typeData   = typeLabels.map(k => typeCounts[k]);
+    const typeColArr = typeLabels.map(k => typeColors[k] || 'rgba(245,242,234,0.15)');
+
+    const ctxType = document.getElementById('dash-chart-type');
+    if (ctxType) {
+        if (ctxType._chartInstance) ctxType._chartInstance.destroy();
+        ctxType._chartInstance = new Chart(ctxType, {
+            type: 'doughnut',
+            data: {
+                labels: typeLabels,
+                datasets: [{ data: typeData, backgroundColor: typeColArr, borderColor: 'rgba(11,11,13,0.8)', borderWidth: 2 }]
+            },
+            options: {
+                responsive: true,
+                cutout: '65%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: textColor, font: { family: 'monospace', size: 10 }, padding: 12, boxWidth: 10 } }
+                }
+            }
+        });
+    }
+
+    // ── Chart 2: By Month (Bar) ──────────────────────────────────
+    const monthCounts = {};
+    projects.forEach(p => {
+        const ts = p.created_at;
+        if (!ts) return;
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        if (isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthCounts[key] = (monthCounts[key] || 0) + 1;
+    });
+    const monthKeys   = Object.keys(monthCounts).sort();
+    const monthLabels = monthKeys.map(k => {
+        const [y, m] = k.split('-');
+        return new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    });
+    const monthData = monthKeys.map(k => monthCounts[k]);
+
+    const ctxMonth = document.getElementById('dash-chart-month');
+    if (ctxMonth) {
+        if (ctxMonth._chartInstance) ctxMonth._chartInstance.destroy();
+        ctxMonth._chartInstance = new Chart(ctxMonth, {
+            type: 'bar',
+            data: {
+                labels: monthLabels,
+                datasets: [{
+                    label: 'Projects',
+                    data: monthData,
+                    backgroundColor: 'rgba(245,242,234,0.15)',
+                    borderColor: 'rgba(245,242,234,0.4)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: textColor, font: { family: 'monospace', size: 9 } }, grid: { color: gridColor } },
+                    y: { ticks: { color: textColor, font: { family: 'monospace', size: 9 }, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
+                }
+            }
+        });
+    }
+}
+
 function subscribeToProjects() {
     const q = query(collection(db, "projects"), orderBy("created_at", "desc"));
     onSnapshot(q, (snapshot) => {
         projectList.innerHTML = "";
-        snapshot.forEach((doc) => renderProjectItem(doc.id, doc.data()));
+        // Sort: pinned first, then by created_at desc (already ordered by query)
+        const docs = snapshot.docs.slice().sort((a, b) => {
+            const aPinned = a.data().pinned ? 1 : 0;
+            const bPinned = b.data().pinned ? 1 : 0;
+            return bPinned - aPinned;
+        });
+        docs.forEach((doc) => renderProjectItem(doc.id, doc.data()));
     });
 }
 
@@ -984,16 +1546,24 @@ function renderProjectItem(id, data) {
     item.style.flexDirection = "column"; 
     item.style.alignItems = "stretch";
 
+    const isPinned = data.pinned || false;
+
     item.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:15px;">
+                <button class="btn-pin${isPinned ? ' pinned' : ''}" data-id="${id}" title="${isPinned ? 'Unpin project' : 'Pin project'}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="${isPinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="17" x2="12" y2="22"/>
+                        <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
+                    </svg>
+                </button>
                 ${data.icon_url ? `<img src="${data.icon_url}" style="width:40px; height:40px; object-fit:cover; border:1px solid #333;">` : ''}
                 <div>
                     <h3>${data.title}</h3>
                     <p>${data.type} // ${data.stack.join(", ")}</p>
                 </div>
             </div>
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:10px; align-items:center;">
                 <button class="btn-edit-project btn-edit" data-id="${id}">EDIT</button>
                 <button class="btn-delete" data-id="${id}" data-col="projects">DELETE</button>
             </div>
@@ -1001,9 +1571,19 @@ function renderProjectItem(id, data) {
         <div class="edit-slot" id="edit-slot-${id}" style="display:none; margin-top:20px; border-top:1px dashed #333; padding-top:20px;"></div>
     `;
 
+    item.querySelector(".btn-pin").addEventListener("click", () => togglePinProject(id, !isPinned));
     item.querySelector(".btn-delete").addEventListener("click", () => deleteItem("projects", id));
     item.querySelector(".btn-edit-project").addEventListener("click", () => toggleEditProject(id, data));
     projectList.appendChild(item);
+}
+
+async function togglePinProject(id, pinned) {
+    try {
+        await setDoc(doc(db, "projects", id), { pinned }, { merge: true });
+    } catch (err) {
+        console.error("Error toggling pin:", err);
+        alert("Failed to pin/unpin project: " + err.message);
+    }
 }
 
 function toggleEditProject(id, data) {
@@ -1019,14 +1599,31 @@ function toggleEditProject(id, data) {
     // Build view angle slots HTML from existing model_views data
     const modelViews = data.model_views || {};
     const viewAngles = ['front', 'back', 'left', 'right', 'top', 'bottom'];
-    const requiredViews = ['front', 'back', 'left', 'right'];
+    const requiredViews = ['front', 'back'];
+    
+    // Determine which angle is the current cover (default to front)
+    const currentCover = data.icon_url ? 
+        viewAngles.find(angle => modelViews[angle] === data.icon_url) || 'front' : 
+        'front';
+    
     let viewSlotsHtml = '';
     viewAngles.forEach(angle => {
         const isReq = requiredViews.includes(angle);
         const url = modelViews[angle] || '';
+        const isActiveCover = angle === currentCover;
         viewSlotsHtml += `
         <div class="view-slot">
-            <div class="slot-header"><span class="slot-label">${angle.toUpperCase()}</span><span class="slot-tag ${isReq ? 'req' : 'opt'}">${isReq ? 'REQUIRED' : 'OPTIONAL'}</span></div>
+            <div class="slot-header">
+                <span class="slot-label">
+                    <button type="button" class="star-cover-btn ${isActiveCover ? 'active' : ''}" data-angle="${angle}" data-project-id="${id}" onclick="setEditCoverImage('${angle}', '${id}')">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </button>
+                    ${angle.toUpperCase()}
+                </span>
+                <span class="slot-tag ${isReq ? 'req' : 'opt'}">${isReq ? 'REQUIRED' : 'OPTIONAL'}</span>
+            </div>
             <div class="slot-preview" id="edit-preview-${angle}-${id}">${url ? `<img src="${url}" alt="preview">` : '<div class="slot-empty">NO IMAGE</div>'}</div>
             <input type="file" id="edit-file-${angle}-${id}" accept="image/*" class="view-file-input">
             <input type="text" id="edit-url-${angle}-${id}" class="view-url-input" value="${url}" placeholder="URL auto-filled">
@@ -1051,6 +1648,7 @@ function toggleEditProject(id, data) {
                         <option value="Game" ${data.type === 'Game' ? 'selected' : ''}>Game</option>
                         <option value="3D Model" ${data.type === '3D Model' ? 'selected' : ''}>3D Model</option>
                         <option value="Web" ${data.type === 'Web' ? 'selected' : ''}>Web</option>
+                        <option value="Software" ${data.type === 'Software' ? 'selected' : ''}>Software</option>
                     </select>
                 </div>
             </div>
@@ -1094,7 +1692,7 @@ function toggleEditProject(id, data) {
             <div id="edit-model3d-panel-${id}" style="${is3D ? '' : 'display:none;'}">
                 <div class="admin-subpanel">
                     <h4 style="color:var(--accent); margin:0 0 6px; font-family:var(--font-code); font-size:0.85rem;">/// VIEW ANGLE RENDERS</h4>
-                    <p style="color:var(--text-dim); font-size:0.72rem; margin:0 0 12px; font-family:var(--font-code);">Min. 4 required. Front view auto-becomes thumbnail.</p>
+                    <p style="color:var(--text-dim); font-size:0.72rem; margin:0 0 12px; font-family:var(--font-code);">Min. 2 required (Front & Back). Click ★ to set as cover image.</p>
                     <div class="view-angles-grid">
                         ${viewSlotsHtml}
                     </div>
@@ -1109,6 +1707,27 @@ function toggleEditProject(id, data) {
                         <input type="text" class="edit-p-sfuid" value="${data.sketchfab_uid || ''}" placeholder="uid from sketchfab.com">
                     </div>
                 </div>
+                <div class="admin-subpanel" style="margin-top: 16px;">
+                    <h4 style="color:var(--accent); margin:0 0 6px; font-family:var(--font-code); font-size:0.85rem;">/// BLEND FILE DOWNLOAD</h4>
+                    <p style="color:var(--text-dim); font-size:0.72rem; margin:0 0 12px; font-family:var(--font-code);">Upload .blend file to GitHub Releases for public download.</p>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end;">
+                        <div>
+                            <label>.BLEND FILE</label>
+                            <input type="file" id="edit-blend-file-${id}" accept=".blend" class="view-file-input">
+                        </div>
+                        <button type="button" id="edit-btn-upload-blend-${id}" class="btn-brutal outline" style="height: 44px; white-space: nowrap;">UPLOAD .BLEND</button>
+                    </div>
+                    <div id="edit-blend-status-${id}" style="margin-top: 8px; font-family: var(--font-code); font-size: 0.75rem;"></div>
+                    <div style="margin-top: 10px;">
+                        <label>BLEND DOWNLOAD URL</label>
+                        <input type="text" id="edit-blend-url-${id}" value="${data.blend_download_url || ''}" placeholder="Auto-filled after upload, or paste manually" style="width: 100%;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:20px;">
+                <label>CREATED DATE</label>
+                <input type="date" id="edit-p-created-at-${id}" value="${formatDateInputValue(data.created_at)}">
             </div>
 
             <div style="margin-top:20px; display:flex; gap:10px;">
@@ -1123,6 +1742,7 @@ function toggleEditProject(id, data) {
     setupEditModelViewSlots(id);
     setupEditAiButton(id);
     populateEditStackPicker(id, data.stack || []);
+    setupEditBlendUpload(id);
 
     const form = slot.querySelector("form");
     form.addEventListener("submit", async (e) => {
@@ -1143,9 +1763,14 @@ function toggleEditProject(id, data) {
                 sketchfab_uid: form.querySelector(".edit-p-sfuid")?.value || ""
             };
 
-            // For 3D Model, collect view angles and override icon_url + link from front view
+            // Update created_at if date field is filled
+            const createdAtInput = document.getElementById(`edit-p-created-at-${id}`);
+            const parsedDate = parseDateInput(createdAtInput?.value);
+            if (parsedDate) updates.created_at = parsedDate;
+
+            // For 3D Model, collect view angles
             if (type === "3D Model") {
-                const requiredViews = ["front", "back", "left", "right"];
+                const requiredViews = ["front", "back"];
                 for (const view of requiredViews) {
                     const urlInput = document.getElementById(`edit-url-${view}-${id}`);
                     if (!urlInput || !urlInput.value.trim()) {
@@ -1162,8 +1787,16 @@ function toggleEditProject(id, data) {
                     model_views[k] = urlInput ? urlInput.value.trim() || null : null;
                 });
                 updates.model_views = model_views;
-                updates.icon_url = model_views.front || updates.icon_url;
-                updates.link = model_views.front || "";
+                
+                // Use icon_url from the edit form (set by star button), fallback to front view
+                const iconInput = form.querySelector(".edit-p-icon");
+                updates.icon_url = iconInput?.value || model_views.front || "";
+                updates.link = updates.icon_url || "";
+
+                // Save blend download URL
+                const blendUrlInput = document.getElementById(`edit-blend-url-${id}`);
+                const blendUrl = blendUrlInput?.value?.trim();
+                if (blendUrl) updates.blend_download_url = blendUrl;
             }
 
             // Handle 3D model file re-upload to Sketchfab if a new file is selected
@@ -1201,9 +1834,58 @@ function setupEditTypeSwitch(projectId) {
 }
 
 /**
+ * Wires the .blend file upload button in the edit form.
+ * Uploads to GitHub Releases and auto-fills the blend URL input.
+ * @param {string} projectId - The project document ID for unique selectors
+ */
+function setupEditBlendUpload(projectId) {
+    const uploadBtn = document.getElementById(`edit-btn-upload-blend-${projectId}`);
+    const fileInput = document.getElementById(`edit-blend-file-${projectId}`);
+    const urlInput = document.getElementById(`edit-blend-url-${projectId}`);
+    const statusEl = document.getElementById(`edit-blend-status-${projectId}`);
+    if (!uploadBtn || !fileInput) return;
+
+    uploadBtn.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) { alert('Please select a .blend file first.'); return; }
+        if (!file.name.toLowerCase().endsWith('.blend')) { alert('Only .blend files are allowed.'); return; }
+        if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO || !GITHUB_RELEASE_TAG) {
+            alert('GitHub configuration incomplete. Check the config section above.');
+            return;
+        }
+
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'UPLOADING...';
+        statusEl.innerHTML = '<span style="color: var(--accent);">Uploading to GitHub Releases...</span>';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('githubToken', GITHUB_TOKEN);
+            formData.append('githubOwner', GITHUB_OWNER);
+            formData.append('githubRepo', GITHUB_REPO);
+            formData.append('githubTag', GITHUB_RELEASE_TAG);
+
+            const resp = await fetch('/api/upload-github', { method: 'POST', body: formData });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Upload failed');
+
+            urlInput.value = data.download_url;
+            const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
+            statusEl.innerHTML = `<span style="color: #00ff88;">✓ UPLOADED (${sizeMB} MB) — ${data.name}</span>`;
+        } catch (err) {
+            statusEl.innerHTML = `<span style="color: #ff4444;">✗ FAILED: ${err.message}</span>`;
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'UPLOAD .BLEND';
+        }
+    });
+}
+
+/**
  * Wires per-slot file upload logic for each view angle in the edit form.
  * On file change: shows local preview, uploads to Cloudinary, auto-fills URL input.
- * If the front slot is uploaded, also auto-fills the icon_url field.
+ * If the angle's star is active, also auto-fills the icon_url field.
  * @param {string} projectId - The project document ID for unique selectors
  */
 function setupEditModelViewSlots(projectId) {
@@ -1230,8 +1912,9 @@ function setupEditModelViewSlots(projectId) {
                 statusEl.textContent = 'UPLOADED';
                 statusEl.className = 'slot-status done';
 
-                // Auto-set icon_url from front view for Firestore thumbnail
-                if (angleKey === 'front') {
+                // If this angle's star is active, update the icon_url
+                const starBtn = document.querySelector(`.star-cover-btn[data-angle="${angleKey}"][data-project-id="${projectId}"]`);
+                if (starBtn && starBtn.classList.contains('active')) {
                     const iconInput = document.querySelector(`#edit-slot-${projectId} .edit-p-icon`);
                     if (iconInput) iconInput.value = cloudUrl;
                 }
@@ -1644,19 +2327,28 @@ async function deleteItem(collectionName, id) {
     }
 }
 
-// UPLOAD HELPER (CLOUDINARY)
+// UPLOAD HELPER (CLOUDINARY) - Server-side upload with API Secret
 async function uploadToCloudinary(file) {
-    const cloudName = sessionStorage.getItem('cloudinary_name');
-    const uploadPreset = sessionStorage.getItem('cloudinary_preset');
-    
-    if (!cloudName || !uploadPreset) {
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
         throw new Error("Cloudinary configuration missing. Please check the config section.");
     }
     
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: formData });
+    formData.append("cloudName", CLOUDINARY_CLOUD_NAME);
+    formData.append("apiKey", CLOUDINARY_API_KEY);
+    formData.append("apiSecret", CLOUDINARY_API_SECRET);
+    
+    const response = await fetch("/api/upload-cloudinary", { 
+        method: "POST", 
+        body: formData 
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+    }
+    
     const data = await response.json();
     return data.secure_url || null;
 }
@@ -1680,8 +2372,9 @@ if(addProjectForm) {
             const iconFile = document.getElementById("p-icon-file").files[0];
             const modelFile = document.getElementById("p-model-file-input")?.files[0];
 
-            // Upload standard icon only for Game/Web projects.
-            if (iconFile && type !== "3D Model") {
+            // Icon is already uploaded via auto-upload on file selection.
+            // Only upload here as fallback if URL input is still empty and a file is selected.
+            if (iconFile && type !== "3D Model" && !iconUrl) {
                 submitBtn.innerText = "UPLOADING_ICON...";
                 iconUrl = await uploadToCloudinary(iconFile);
             }
@@ -1742,12 +2435,12 @@ if(addProjectForm) {
                 link: document.getElementById("p-link").value || "",
                 icon_url: iconUrl || "",
                 sketchfab_uid: sketchfabUid,
-                created_at: serverTimestamp()
+                created_at: parseDateInput(document.getElementById("p-created-at")?.value) || serverTimestamp()
             };
 
-            // For 3D Model, collect view angles and override icon_url + link.
+            // For 3D Model, collect view angles
             if (type === "3D Model") {
-                const requiredViews = ["front", "back", "left", "right"];
+                const requiredViews = ["front", "back"];
                 for (const view of requiredViews) {
                     if (!document.getElementById(`url-${view}`).value.trim()) {
                         alert(`ERROR: ${view.toUpperCase()} view image is required.`);
@@ -1764,14 +2457,21 @@ if(addProjectForm) {
                 });
 
                 projectData.model_views = model_views;
-                // Auto-set icon_url and link from front view.
-                projectData.icon_url = model_views.front || iconUrl;
-                projectData.link     = model_views.front || "";
+                // Use icon_url from p-icon input (set by star button), fallback to front view
+                projectData.icon_url = iconUrl || model_views.front || "";
+                projectData.link = projectData.icon_url || "";
+
+                // Add .blend download URL if uploaded
+                const blendUrl = document.getElementById("p-blend-url")?.value?.trim();
+                if (blendUrl) {
+                    projectData.blend_download_url = blendUrl;
+                }
             }
 
             await addDoc(collection(db, "projects"), projectData);
             alert("PROJECT UPLOADED SUCCESSFULLY");
             addProjectForm.reset();
+            localStorage.removeItem('admin_selected_category');
             // Clear all stack checkboxes after form reset (reset() doesn't affect custom elements).
             const optionsContainer = document.getElementById('p-stack-options');
             const countDisplay = document.getElementById('p-stack-selected-count');
@@ -1792,6 +2492,9 @@ if(addProjectForm) {
                 const s = document.getElementById(`status-${k}`);
                 if (s) { s.textContent = ""; s.className = "slot-status"; }
             });
+            // Clear blend upload status
+            const blendStatus = document.getElementById('blend-upload-status');
+            if (blendStatus) blendStatus.innerHTML = '';
         } catch (e) { alert("ERROR: " + e.message); console.error(e); } 
         
         loader.style.display = "none";

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Works | Tristan Davin Dakara</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem('theme');
+                if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            } catch (e) {}
+        })();
+    </script>
+</head>
+<body class="page-works">
+    <script>
+        document.body.classList.add('page-enter');
+        requestAnimationFrame(function() {
+            document.body.classList.remove('page-enter');
+        });
+    </script>
+    
+    <nav class="site-nav">
+        <div class="nav-inner">
+            <a class="logo" href="index.html" aria-label="Home">Tristan Davin Dakara</a>
+            <ul class="nav-links">
+                <li><a href="index.html#about">About</a></li>
+                <li><a href="index.html#stack">Services</a></li>
+                <li><a href="index.html#experience">Experience</a></li>
+                <li><a href="index.html#logs">Logs</a></li>
+                <li class="nav-work-item">
+                    <a href="works.html" class="nav-work-trigger">Work</a>
+                    <div class="nav-work-panel">
+                        <a href="index.html#projects">
+                            Selected Work
+                            <span>Scroll to projects</span>
+                        </a>
+                        <a href="works.html">
+                            All Projects
+                            <span>Full portfolio page</span>
+                        </a>
+                    </div>
+                </li>
+                <li><a href="index.html#contact">Contact</a></li>
+            </ul>
+            <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme" aria-pressed="false"></button>
+            <button class="hamburger" id="hamburger" type="button" aria-label="Menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Nav Overlay -->
+    <div class="mobile-nav-overlay" id="mobile-nav">
+        <a href="index.html#about" class="mobile-nav-link">About</a>
+        <a href="index.html#stack" class="mobile-nav-link">Services</a>
+        <a href="index.html#experience" class="mobile-nav-link">Experience</a>
+        <a href="index.html#logs" class="mobile-nav-link">Logs</a>
+        <a href="works.html" class="mobile-nav-link">Work</a>
+        <a href="index.html#contact" class="mobile-nav-link">Contact</a>
+    </div>
+
+    <!-- Works Hero Section -->
+    <section id="works-hero" data-animate>
+        <div class="container">
+            <div class="works-hero-content">
+                <div class="eyebrow" data-animate-child>Portfolio</div>
+                <h1 class="works-title" data-animate-child>All Projects</h1>
+                <p class="works-subtitle" data-animate-child>A collection of games, 3D models, and web applications I've built.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Projects Section -->
+    <section id="all-projects" data-animate>
+        <div class="container section-layout">
+            <div class="works-controls">
+                <div class="works-count">
+                    <span id="project-count">Loading...</span>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button id="works-view-toggle" class="view-toggle-btn" type="button" aria-label="Toggle view" title="Switch to list view">
+                        <svg id="works-view-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <select id="project-filter-works">
+                        <option value="ALL">All Projects</option>
+                        <option value="Game">Games</option>
+                        <option value="3D Model">3D Models</option>
+                        <option value="Web">Web Apps</option>
+                        <option value="Software">Software</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Project Grid -->
+            <div class="works-grid" id="works-container">
+                <!-- Skeleton placeholders (replaced by works page script) -->
+                <div data-skeleton style="width: 100%; height: 280px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 280px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 280px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 280px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 280px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 280px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact CTA -->
+    <section id="works-cta" data-animate>
+        <div class="container section-layout centered">
+            <h2 data-animate-child>Interested in working together?</h2>
+            <p data-animate-child>Let's build something great.</p>
+            <a href="index.html#contact" class="btn-brutal" data-animate-child>Get in touch</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="works-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>© 2026 TRISTAN DAVIN DAKARA</p>
+                <div class="footer-links">
+                    <a href="https://github.com/TDD131" target="_blank" rel="noopener noreferrer">GITHUB</a>
+                    <a href="https://www.instagram.com/im_allergic_to_lactose/" target="_blank" rel="noopener noreferrer">INSTAGRAM</a>
+                    <a href="https://discordapp.com/users/811846482822561802" target="_blank" rel="noopener noreferrer">DISCORD</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Hamburger Menu Logic -->
+    <script>
+        (function() {
+            var hamburger = document.getElementById('hamburger');
+            var mobileNav = document.getElementById('mobile-nav');
+            if (!hamburger || !mobileNav) return;
+            hamburger.addEventListener('click', function() {
+                hamburger.classList.toggle('active');
+                mobileNav.classList.toggle('open');
+                var isOpen = hamburger.classList.contains('active');
+                hamburger.setAttribute('aria-expanded', isOpen);
+                document.body.classList.toggle('mobile-menu-open', isOpen);
+            });
+            mobileNav.querySelectorAll('.mobile-nav-link').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    hamburger.classList.remove('active');
+                    mobileNav.classList.remove('open');
+                    document.body.classList.remove('mobile-menu-open');
+                    hamburger.setAttribute('aria-expanded', 'false');
+                });
+            });
+        })();
+    </script>
+
+    <!-- View Toggle Logic -->
+    <script>
+        (function() {
+            var viewToggle = document.getElementById('works-view-toggle');
+            var viewIcon = document.getElementById('works-view-icon');
+            var worksContainer = document.getElementById('works-container');
+
+            if (!viewToggle || !viewIcon || !worksContainer) return;
+
+            var gridIconPath = 'M3 3h5v5H3V3zm7 0h5v5h-5V3zm7 0h5v5h-5V3zM3 10h5v5H3v-5zm7 0h5v5h-5v-5zm7 0h5v5h-5v-5zM3 17h5v5H3v-5zm7 0h5v5h-5v-5zm7 0h5v5h-5v-5z';
+            var listIconPath = 'M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z';
+
+            var savedView = localStorage.getItem('worksView') || 'grid';
+
+            function applyView(view) {
+                if (view === 'grid') {
+                    worksContainer.classList.remove('list-view');
+                    viewIcon.innerHTML = '<path d="' + listIconPath + '" fill="currentColor"/>';
+                    viewToggle.setAttribute('title', 'Switch to list view');
+                } else {
+                    worksContainer.classList.add('list-view');
+                    viewIcon.innerHTML = '<path d="' + gridIconPath + '" fill="currentColor"/>';
+                    viewToggle.setAttribute('title', 'Switch to grid view');
+                }
+                localStorage.setItem('worksView', view);
+                // Notify the renderer to re-render with the right markup
+                window.dispatchEvent(new CustomEvent('works-view-change', { detail: { view: view } }));
+            }
+
+            function animateCards() {
+                // Remove animation class first to allow re-trigger
+                worksContainer.classList.remove('view-animate');
+                // Force reflow so the class removal takes effect
+                void worksContainer.offsetHeight;
+                // Add stagger delays to each card (works-card OR project-row)
+                var cards = worksContainer.querySelectorAll('.works-card, .project-row');
+                cards.forEach(function(card, i) {
+                    card.style.animationDelay = (i * 50) + 'ms';
+                });
+                // Trigger animation
+                worksContainer.classList.add('view-animate');
+                // Cleanup after animation completes
+                setTimeout(function() {
+                    worksContainer.classList.remove('view-animate');
+                    cards.forEach(function(card) {
+                        card.style.animationDelay = '';
+                    });
+                }, cards.length * 50 + 500);
+            }
+
+            // Initial load — no animation
+            applyView(savedView);
+
+            viewToggle.addEventListener('click', function() {
+                var currentView = worksContainer.classList.contains('list-view') ? 'list' : 'grid';
+                var newView = currentView === 'grid' ? 'list' : 'grid';
+                applyView(newView);
+                // Re-animate after the renderer has produced fresh markup
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(animateCards);
+                });
+            });
+        })();
+    </script>
+
+    <!-- Page Transition Logic -->
+    <script>
+        (function() {
+            var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reduceMotion) return;
+
+            document.querySelectorAll('a[href]').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    var url;
+                    try { url = new URL(link.href, window.location.href); } catch (err) { return; }
+                    if (url.origin !== window.location.origin) return;
+                    if (link.target && link.target !== '_self') return;
+
+                    // Same-page hash links are handled by initAnchorScroll via Lenis
+                    if (url.pathname === window.location.pathname && url.hash) {
+                        return;
+                    }
+
+                    // Handle page navigation
+                    e.preventDefault();
+                    document.body.classList.add('page-leave');
+                    setTimeout(function() {
+                        window.location.href = url.href;
+                    }, 260);
+                });
+            });
+        })();
+    </script>
+
+    <!-- Theme Toggle Logic -->
+    <script>
+        (function() {
+            var toggle = document.getElementById('theme-toggle');
+            if (!toggle) return;
+
+            function updateIcon() {
+                var isDark = !document.documentElement.hasAttribute('data-theme') || 
+                            document.documentElement.getAttribute('data-theme') === 'dark';
+                toggle.innerHTML = isDark 
+                    ? '<iconify-icon icon="ph:sun-bold"></iconify-icon>'
+                    : '<iconify-icon icon="ph:moon-bold"></iconify-icon>';
+                toggle.setAttribute('aria-pressed', isDark ? 'false' : 'true');
+            }
+
+            updateIcon();
+
+            toggle.addEventListener('click', function() {
+                var currentTheme = document.documentElement.getAttribute('data-theme');
+                var newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                
+                if (newTheme === 'dark') {
+                    document.documentElement.removeAttribute('data-theme');
+                    localStorage.removeItem('theme');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    localStorage.setItem('theme', 'light');
+                }
+                
+                updateIcon();
+            });
+        })();
+    </script>
+
+    <!-- Works Page Script -->
+    <script type="module">
+        import { collection, getDocs, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        // Import Firebase instances
+        import { db } from './js/firebase-config.js';
+
+        let allProjects = [];
+        let currentFilter = 'ALL';
+        let currentView = localStorage.getItem('worksView') || 'grid';
+
+        async function loadProjects() {
+            try {
+                const projectsRef = collection(db, 'projects');
+                const q = query(projectsRef, orderBy('created_at', 'desc'));
+                const snapshot = await getDocs(q);
+
+                allProjects = [];
+                for (const doc of snapshot.docs) {
+                    const data = doc.data();
+                    
+                    // Determine link based on type
+                    let projectLink = data.link || '';
+                    if (data.type === '3D Model' || data.type === 'Model') {
+                        projectLink = `model.html?id=${doc.id}`;
+                    }
+                    
+                    allProjects.push({
+                        id: doc.id,
+                        title: data.title || 'Untitled',
+                        type: data.type || 'Other',
+                        description: data.description || 'No description available',
+                        tags: normalizeStack(data.stack),
+                        link: projectLink,
+                        imageUrl: data.icon_url || '',
+                        pinned: data.pinned || false
+                    });
+                }
+
+                console.log('Loaded projects:', allProjects.length);
+                // Sort pinned projects first
+                allProjects.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+                renderProjects();
+                updateProjectCount();
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                document.getElementById('works-container').innerHTML = 
+                    '<div class="terminal-text" style="color: var(--text-dim); text-align: center; grid-column: 1 / -1;">ERROR: Failed to load projects</div>';
+            }
+        }
+
+        function normalizeStack(value) {
+            if (Array.isArray(value)) return value;
+            if (typeof value === "string") {
+                return value
+                    .split(",")
+                    .map(s => s.trim())
+                    .filter(Boolean);
+            }
+            return [];
+        }
+
+        function setupProjectDescriptionToggles(container) {
+            if (!container) return;
+
+            container.querySelectorAll('.project-body').forEach(body => {
+                const desc = body.querySelector('.project-desc');
+                const toggle = body.querySelector('.project-desc-toggle');
+                if (!desc || !toggle) return;
+
+                desc.classList.remove('collapsible', 'expanded');
+                toggle.classList.remove('visible');
+                toggle.textContent = 'MORE';
+                toggle.setAttribute('aria-expanded', 'false');
+
+                requestAnimationFrame(() => {
+                    const needsToggle = desc.scrollHeight > desc.clientHeight + 4 || desc.textContent.length > 180;
+                    if (!needsToggle) return;
+                    desc.classList.add('collapsible');
+                    toggle.classList.add('visible');
+                });
+
+                toggle.addEventListener('click', () => {
+                    const isExpanded = desc.classList.toggle('expanded');
+                    desc.classList.toggle('collapsible', !isExpanded);
+                    toggle.textContent = isExpanded ? 'LESS' : 'MORE';
+                    toggle.setAttribute('aria-expanded', String(isExpanded));
+                });
+
+                desc.addEventListener('wheel', (e) => {
+                    if (!desc.classList.contains('expanded')) return;
+                    e.stopPropagation();
+                }, { passive: true });
+
+                desc.addEventListener('touchmove', (e) => {
+                    if (!desc.classList.contains('expanded')) return;
+                    e.stopPropagation();
+                }, { passive: true });
+            });
+        }
+
+        function renderProjects() {
+            const container = document.getElementById('works-container');
+            
+            const filteredProjects = currentFilter === 'ALL' 
+                ? allProjects 
+                : allProjects.filter(p => p.type === currentFilter);
+
+            console.log('Rendering projects:', filteredProjects.length, 'Filter:', currentFilter, 'View:', currentView);
+
+            if (filteredProjects.length === 0) {
+                container.innerHTML = '<div class="terminal-text" style="color: var(--text-dim); text-align: center; grid-column: 1 / -1;">No projects found</div>';
+                return;
+            }
+
+            // Render different markup for list-view vs grid-view
+            // List-view uses the EXACT same .project-row markup as index.html
+            // for 100% visual consistency
+            if (currentView === 'list') {
+                container.innerHTML = filteredProjects.map(project => {
+                    const buttonText = 
+                        project.type === 'Game' ? 'Download Game' :
+                        project.type === '3D Model' ? 'View 3D Model' :
+                        project.type === 'Web' ? 'Open Site' :
+                        project.type === 'Software' ? 'Download' :
+                        'View Project';
+                    const linkTarget = project.type === '3D Model' ? '_self' : '_blank';
+                    const stackHtml = project.tags.map(tag => `<span class="tech-tag">${tag}</span>`).join('');
+                    
+                    return `
+                        <div class="project-row${project.pinned ? ' pinned' : ''}" data-type="${project.type}" data-animate-child>
+                            <div class="project-icon-container">
+                                ${project.imageUrl 
+                                    ? `<img src="${project.imageUrl}" class="project-icon" alt="${project.title}" loading="lazy">`
+                                    : '<div style="color:#333;">NO_IMG</div>'
+                                }
+                            </div>
+                            <div class="project-content">
+                                <h3 class="project-title">${project.title}</h3>
+                                <div class="project-meta">
+                                    <span class="project-type">${project.type || ''}</span>
+                                    <div class="project-tags">${stackHtml}</div>
+                                </div>
+                                <div class="project-body">
+                                    <p class="project-desc">${project.description}</p>
+                                    <button class="project-desc-toggle" type="button" aria-expanded="false">MORE</button>
+                                </div>
+                            </div>
+                            <div class="project-action">
+                                ${project.link 
+                                    ? `<a href="${project.link}" target="${linkTarget}" rel="noopener noreferrer" class="btn-access">${buttonText}</a>`
+                                    : '<span class="btn-access disabled">No Link</span>'
+                                }
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                setupProjectDescriptionToggles(container);
+            } else {
+                // Grid view: original works-card markup
+                container.innerHTML = filteredProjects.map(project => `
+                    <div class="works-card" data-type="${project.type}" data-animate-child>
+                        <div class="works-card-image">
+                            ${project.imageUrl 
+                                ? `<img src="${project.imageUrl}" alt="${project.title}" loading="lazy">`
+                                : '<div class="works-card-placeholder">No Image</div>'
+                            }
+                        </div>
+                        <div class="works-card-content">
+                            <h3 class="works-card-title">${project.title}</h3>
+                            <div class="works-card-meta">
+                                <span class="works-card-type">${project.type}</span>
+                                <div class="works-card-tags">
+                                    ${project.tags.map(tag => `<span class="tech-tag">${tag}</span>`).join('')}
+                                </div>
+                            </div>
+                            <p class="works-card-desc">${project.description}</p>
+                        </div>
+                        <div class="works-card-action">
+                            ${project.link 
+                                ? `<a href="${project.link}" target="${
+                                    project.type === '3D Model' ? '_self' : '_blank'
+                                }" rel="noopener noreferrer" class="btn-access">${
+                                    project.type === 'Game' ? 'Download Game' :
+                                    project.type === '3D Model' ? 'View 3D Model' :
+                                    project.type === 'Web' ? 'Open Site' :
+                                    project.type === 'Software' ? 'Download' :
+                                    'View Project'
+                                }</a>`
+                                : '<span class="btn-access disabled">No Link</span>'
+                            }
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            updateProjectCount();
+        }
+
+        function updateProjectCount() {
+            const filteredCount = currentFilter === 'ALL' 
+                ? allProjects.length 
+                : allProjects.filter(p => p.type === currentFilter).length;
+            
+            document.getElementById('project-count').textContent = 
+                `${filteredCount} ${filteredCount === 1 ? 'project' : 'projects'}`;
+        }
+
+        // Filter functionality
+        // Listen for 'filter-animate-done' (dispatched by animations.js after fade-out)
+        // instead of 'change' so the fade-out animation plays before DOM replacement.
+        document.getElementById('project-filter-works').addEventListener('filter-animate-done', function(e) {
+            currentFilter = document.getElementById('project-filter-works').value;
+            renderProjects();
+        });
+
+        // Re-render when view toggle changes (list-view uses different markup than grid)
+        window.addEventListener('works-view-change', function(e) {
+            currentView = e.detail.view;
+            if (allProjects.length > 0) {
+                renderProjects();
+            }
+        });
+
+        // Load projects on page load
+        loadProjects();
+    </script>
+
+    <!-- Lenis Smooth Scroll + Animation Module -->
+    <script type="module">
+        import Lenis from 'https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/+esm';
+        import { initAnimations } from './js/animations.js';
+
+        const lenis = new Lenis({
+            duration: 2.0,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            direction: 'vertical',
+            gestureDirection: 'vertical',
+            smooth: true,
+            mouseMultiplier: 1,
+            smoothTouch: false,
+            touchMultiplier: 2,
+        });
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        initAnimations(lenis);
+    </script>
+</body>
+</html>

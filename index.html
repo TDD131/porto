@@ -30,11 +30,23 @@
         <div class="nav-inner">
             <a class="logo" href="#hero" aria-label="Home">Tristan Davin Dakara</a>
             <ul class="nav-links">
-                <li><a href="#about">About</a></li>
-                <li><a href="#stack">Services</a></li>
-                <li><a href="#experience">Experience</a></li>
-                <li><a href="#logs">Logs</a></li>
-                <li><a href="#projects">Work</a></li>
+                <li><a href="index.html#about">About</a></li>
+                <li><a href="index.html#stack">Services</a></li>
+                <li><a href="index.html#experience">Experience</a></li>
+                <li><a href="index.html#logs">Logs</a></li>
+                <li class="nav-work-item">
+                    <a href="#projects" class="nav-work-trigger">Work</a>
+                    <div class="nav-work-panel">
+                        <a href="#projects">
+                            Selected Work
+                            <span>Scroll to projects</span>
+                        </a>
+                        <a href="works.html">
+                            All Projects
+                            <span>Full portfolio page</span>
+                        </a>
+                    </div>
+                </li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
             <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme" aria-pressed="false"></button>
@@ -52,7 +64,7 @@
         <a href="#stack" class="mobile-nav-link">Services</a>
         <a href="#experience" class="mobile-nav-link">Experience</a>
         <a href="#logs" class="mobile-nav-link">Logs</a>
-        <a href="#projects" class="mobile-nav-link">Work</a>
+        <a href="works.html" class="mobile-nav-link">Work</a>
         <a href="#contact" class="mobile-nav-link">Contact</a>
     </div>
 
@@ -66,7 +78,7 @@
                     <p class="hero-subtitle">From modular logic systems to render pipeline optimization, I help teams ship features that feel good and run fast.</p>
 
                     <div class="hero-cta">
-                        <a href="#projects" class="btn-brutal">Selected work</a>
+                        <a href="works.html" class="btn-brutal">Selected work</a>
                         <a href="#contact" class="btn-brutal outline">Contact</a>
                     </div>
                 </div>
@@ -90,7 +102,7 @@
     </section>
 
     <!-- About Section -->
-    <section id="about">
+    <section id="about" data-animate>
         <div class="container section-layout">
             <div class="section-title">
                 <div class="section-kicker">About</div>
@@ -103,15 +115,15 @@
                     <p>My current focus is performance-driven architecture, render pipeline optimization, and modular interaction systems designed for real team workflows.</p>
                 </div>
                 <div id="stats-grid" class="stats-grid">
-                    <div class="stat-box">
+                    <div class="stat-box" data-animate-child>
                         <h3>1+</h3>
                         <p>YEARS EXP</p>
                     </div>
-                    <div class="stat-box">
+                    <div class="stat-box" data-animate-child>
                         <h3>C#</h3>
                         <p>CORE LANGS</p>
                     </div>
-                    <div class="stat-box">
+                    <div class="stat-box" data-animate-child>
                         <h3>6+</h3>
                         <p>SHIPS</p>
                     </div>
@@ -121,7 +133,7 @@
     </section>
 
     <!-- Tech Stack -->
-    <section id="stack">
+    <section id="stack" data-animate>
         <div class="container section-layout">
             <div class="section-title">
                 <div class="section-kicker">Services</div>
@@ -130,14 +142,16 @@
             </div>
             
             <div id="stack-grid" class="stack-grid">
-                <!-- Content loaded via script_v3.js -->
-                <div class="loader" style="margin: 0 auto;"></div>
+                <!-- Skeleton placeholders (replaced by script_v3.js) -->
+                <div data-skeleton style="width: 100%; height: 180px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 180px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 180px; border-radius: 16px; background: var(--card-bg, #1a1a1a);"></div>
             </div>
         </div>
     </section>
 
     <!-- Experience Timeline -->
-    <section id="experience">
+    <section id="experience" data-animate>
         <div class="container section-layout">
             <div class="section-title">
                 <div class="section-kicker">Experience</div>
@@ -145,13 +159,16 @@
                 <div class="line"></div>
             </div>
                         <div class="timeline" id="experience-container">
-                    <div class="loader" style="color: var(--text-dim); text-align: center;">> SYNCING_TIMELINE...</div>
+                    <!-- Skeleton placeholders (replaced by script_v3.js) -->
+                    <div data-skeleton style="width: 100%; height: 100px; border-radius: 12px; background: var(--card-bg, #1a1a1a); margin-bottom: 16px;"></div>
+                    <div data-skeleton style="width: 100%; height: 100px; border-radius: 12px; background: var(--card-bg, #1a1a1a); margin-bottom: 16px;"></div>
+                    <div data-skeleton style="width: 80%; height: 100px; border-radius: 12px; background: var(--card-bg, #1a1a1a);"></div>
                 </div>
         </div>
     </section>
 
     <!-- Dev Logs -->
-    <section id="logs">
+    <section id="logs" data-animate>
         <div class="container section-layout">
             <div class="section-title">
                 <div class="section-kicker">Dev Logs</div>
@@ -159,41 +176,69 @@
                 <div class="line"></div>
             </div>
             <div class="devlog-grid" id="devlogs-container">
-                <div class="loader" style="color: var(--text-dim); text-align:center;">// STREAM_CONNECT...</div>
+                <!-- Skeleton placeholders (replaced by script_v3.js) -->
+                <div data-skeleton style="width: 100%; height: 90px; border-radius: 12px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 90px; border-radius: 12px; background: var(--card-bg, #1a1a1a);"></div>
+                <div data-skeleton style="width: 100%; height: 90px; border-radius: 12px; background: var(--card-bg, #1a1a1a);"></div>
             </div>
         </div>
     </section>
 
     <!-- Projects -->
-    <section id="projects">
+    <section id="projects" data-animate>
         <div class="container section-layout">
             <div class="section-title">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap: 16px; flex-wrap: wrap;">
                     <div>
                         <div class="section-kicker">Work</div>
                         <h2>Selected projects.</h2>
                     </div>
-                    <select id="project-filter">
-                        <option value="ALL">All</option>
-                        <option value="Game">GAME</option>
-                        <option value="3D Model">3D MODEL</option>
-                        <option value="Web">WEB</option>
-                    </select>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <button id="view-toggle" class="view-toggle-btn" type="button" aria-label="Toggle view" title="Toggle grid/list view">
+                            <svg id="view-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Grid icon (3x3) - default -->
+                                <path d="M3 3h5v5H3V3zm7 0h5v5h-5V3zm7 0h5v5h-5V3zM3 10h5v5H3v-5zm7 0h5v5h-5v-5zm7 0h5v5h-5v-5zM3 17h5v5H3v-5zm7 0h5v5h-5v-5zm7 0h5v5h-5v-5z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <select id="project-filter">
+                            <option value="ALL">All</option>
+                            <option value="Game">GAME</option>
+                            <option value="3D Model">3D MODEL</option>
+                            <option value="Web">WEB</option>
+                            <option value="Software">SOFTWARE</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="line"></div>
             </div>
 
             <!-- Project List (Dynamic) -->
             <div class="project-list" id="projects-container">
-                <div class="terminal-text" style="color: var(--text-dim); text-align: center; margin-top: 50px;">
-                    > CONNECTING TO DATABASE...
+                <!-- Skeleton placeholders (replaced by script_v3.js) -->
+                <div data-skeleton style="width: 100%; height: 72px; border-radius: 12px; background: var(--card-bg, #1a1a1a); margin-bottom: 12px;"></div>
+                <div data-skeleton style="width: 100%; height: 72px; border-radius: 12px; background: var(--card-bg, #1a1a1a); margin-bottom: 12px;"></div>
+                <div data-skeleton style="width: 100%; height: 72px; border-radius: 12px; background: var(--card-bg, #1a1a1a);"></div>
+            </div>
+
+            <!-- Expand/Collapse Controls -->
+            <div class="project-controls" id="project-controls" style="display: none;">
+                <button id="expand-btn" class="btn-brutal outline" style="display: none;">
+                    Show More Projects
+                </button>
+                <div id="expanded-controls" style="display: none; gap: 12px;">
+                    <button id="collapse-btn" class="btn-brutal outline">
+                        Show Less
+                    </button>
+                    <a href="works.html" class="btn-brutal">
+                        View All Projects
+                    </a>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Contact -->
-    <section id="contact">
+    <section id="contact" data-animate>
         <div class="container section-layout centered">
             <h2>Let’s build something.</h2>
             <p>Available for contracts and full-time roles.</p>
@@ -251,13 +296,8 @@
                     if (url.origin !== window.location.origin) return;
                     if (link.target && link.target !== '_self') return;
 
-                    // Handle hash links (navbar clicks) with smooth scroll
+                    // Same-page hash links are handled by initAnchorScroll via Lenis
                     if (url.pathname === window.location.pathname && url.hash) {
-                        e.preventDefault();
-                        var target = document.querySelector(url.hash);
-                        if (target) {
-                            target.scrollIntoView({ behavior: 'smooth' });
-                        }
                         return;
                     }
 
@@ -272,7 +312,216 @@
         })();
     </script>
 
+    <!-- View Toggle Logic -->
+    <script>
+        (function() {
+            var viewToggle = document.getElementById('view-toggle');
+            var viewIcon = document.getElementById('view-icon');
+            var projectsContainer = document.getElementById('projects-container');
+            
+            if (!viewToggle || !viewIcon || !projectsContainer) return;
+
+            // SVG paths
+            var gridIconPath = 'M3 3h5v5H3V3zm7 0h5v5h-5V3zm7 0h5v5h-5V3zM3 10h5v5H3v-5zm7 0h5v5h-5v-5zm7 0h5v5h-5v-5zM3 17h5v5H3v-5zm7 0h5v5h-5v-5zm7 0h5v5h-5v-5z';
+            var barsIconPath = 'M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z';
+
+            // Load saved view preference
+            var savedView = localStorage.getItem('projectView') || 'list';
+            
+            function updateView(view) {
+                if (view === 'grid') {
+                    projectsContainer.classList.add('grid-view');
+                    viewIcon.innerHTML = '<path d="' + barsIconPath + '" fill="currentColor"/>';
+                    viewToggle.setAttribute('title', 'Switch to list view');
+                } else {
+                    projectsContainer.classList.remove('grid-view');
+                    viewIcon.innerHTML = '<path d="' + gridIconPath + '" fill="currentColor"/>';
+                    viewToggle.setAttribute('title', 'Switch to grid view');
+                }
+                localStorage.setItem('projectView', view);
+            }
+
+            function animateCards() {
+                projectsContainer.classList.remove('view-animate');
+                void projectsContainer.offsetHeight;
+                var rows = projectsContainer.querySelectorAll('.project-row');
+                rows.forEach(function(row, i) {
+                    row.style.animationDelay = (i * 50) + 'ms';
+                });
+                projectsContainer.classList.add('view-animate');
+                setTimeout(function() {
+                    projectsContainer.classList.remove('view-animate');
+                    rows.forEach(function(row) {
+                        row.style.animationDelay = '';
+                    });
+                }, rows.length * 50 + 500);
+            }
+
+            // Apply saved view
+            updateView(savedView);
+
+            // Toggle on click
+            viewToggle.addEventListener('click', function() {
+                var currentView = projectsContainer.classList.contains('grid-view') ? 'grid' : 'list';
+                var newView = currentView === 'grid' ? 'list' : 'grid';
+                updateView(newView);
+                animateCards();
+            });
+        })();
+    </script>
+
+    <!-- Project Expand/Collapse Logic -->
+    <script type="module">
+        let isExpanded = false;
+        const INITIAL_LIMIT = 3;
+        const EXPANDED_LIMIT = 6;
+
+        // Store reference to original container content
+        let allProjectElements = [];
+
+        function updateProjectDisplay(animate) {
+            const container = document.getElementById('projects-container');
+            if (!container || allProjectElements.length === 0) return;
+
+            const limit = isExpanded ? EXPANDED_LIMIT : INITIAL_LIMIT;
+            const projectRows = container.querySelectorAll('.project-row');
+            
+            projectRows.forEach((row, index) => {
+                if (index < limit) {
+                    row.style.display = '';
+                    // Animate newly revealed rows
+                    if (animate && index >= INITIAL_LIMIT) {
+                        row.style.animation = 'none';
+                        row.offsetHeight; // force reflow
+                        row.style.animation = '';
+                        row.style.animationDelay = ((index - INITIAL_LIMIT) * 60) + 'ms';
+                        row.classList.add('row-entering');
+                        setTimeout(() => {
+                            row.classList.remove('row-entering');
+                            row.style.animationDelay = '';
+                        }, (index - INITIAL_LIMIT) * 60 + 450);
+                    }
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            updateControls(Math.min(limit, projectRows.length), projectRows.length);
+        }
+
+        function collapseWithAnimation() {
+            const container = document.getElementById('projects-container');
+            if (!container) return;
+
+            const projectRows = container.querySelectorAll('.project-row');
+            const rowsToHide = [];
+
+            projectRows.forEach((row, index) => {
+                if (index >= INITIAL_LIMIT) {
+                    rowsToHide.push(row);
+                }
+            });
+
+            // Animate out in reverse order
+            rowsToHide.reverse().forEach((row, i) => {
+                row.style.animationDelay = (i * 40) + 'ms';
+                row.classList.add('row-exiting');
+            });
+
+            // After animation, hide them
+            setTimeout(() => {
+                rowsToHide.forEach(row => {
+                    row.classList.remove('row-exiting');
+                    row.style.animationDelay = '';
+                    row.style.display = 'none';
+                });
+                updateControls(INITIAL_LIMIT, projectRows.length);
+            }, rowsToHide.length * 40 + 350);
+        }
+
+        function updateControls(showing, total) {
+            const controls = document.getElementById('project-controls');
+            const expandBtn = document.getElementById('expand-btn');
+            const expandedControls = document.getElementById('expanded-controls');
+            
+            if (!controls || !expandBtn || !expandedControls) return;
+
+            if (total > INITIAL_LIMIT) {
+                controls.style.display = 'flex';
+                
+                if (isExpanded) {
+                    expandBtn.style.display = 'none';
+                    expandedControls.style.display = 'flex';
+                } else {
+                    expandBtn.style.display = 'block';
+                    expandedControls.style.display = 'none';
+                }
+            } else {
+                controls.style.display = 'none';
+            }
+        }
+
+        // Watch for projects being loaded
+        const observer = new MutationObserver(() => {
+            const container = document.getElementById('projects-container');
+            if (container) {
+                const projectRows = container.querySelectorAll('.project-row');
+                if (projectRows.length > 0) {
+                    allProjectElements = Array.from(projectRows);
+                    updateProjectDisplay(false);
+                }
+            }
+        });
+
+        // Start observing
+        const container = document.getElementById('projects-container');
+        if (container) {
+            observer.observe(container, { childList: true, subtree: true });
+        }
+
+        // Expand button
+        const expandBtn = document.getElementById('expand-btn');
+        if (expandBtn) {
+            expandBtn.addEventListener('click', () => {
+                isExpanded = true;
+                updateProjectDisplay(true);
+            });
+        }
+
+        // Collapse button
+        const collapseBtn = document.getElementById('collapse-btn');
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', () => {
+                isExpanded = false;
+                collapseWithAnimation();
+                
+                // Scroll to projects section
+                const projectsSection = document.getElementById('projects');
+                if (projectsSection) {
+                    setTimeout(() => {
+                        projectsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 200);
+                }
+            });
+        }
+
+        // Reset expand state on filter change
+        const filterSelect = document.getElementById('project-filter');
+        if (filterSelect) {
+            filterSelect.addEventListener('change', () => {
+                isExpanded = false;
+            });
+        }
+    </script>
+
     <!-- Main Script (Module) -->
     <script type="module" src="script_v3.js"></script>
+
+    <!-- Animation Module -->
+    <script type="module">
+        import { lenis } from './script_v3.js';
+        import { initAnimations } from './js/animations.js';
+        initAnimations(lenis);
+    </script>
 </body>
 </html>

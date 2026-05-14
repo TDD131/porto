@@ -6,256 +6,185 @@
     <title>3D Viewer | Portfolio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
+        /* ── Layout ─────────────────────────────────────────────── */
         body {
             margin: 0;
-            background: #000;
-            color: #fff;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-display);
             overflow: hidden;
-            font-family: 'Inter', sans-serif;
+            height: 100dvh;
+        }
+
+        /* Split-panel wrapper */
+        .split-layout {
+            display: flex;
+            width: 100vw;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* ── Left: Viewer ───────────────────────────────────────── */
+        .viewer-pane {
+            flex: 0 0 62%;
+            position: relative;
+            background: #000;
+            overflow: hidden;
         }
 
         #viewer-container {
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, #111 0%, #000 100%);
-            position: relative;
-        }
-
-        /* Cinematic gradient scrim — darkens bottom-left corner where title/desc live.
-           Scrim height is kept to ~35% so it doesn't reach Sketchfab's bottom toolbar zone. */
-        #viewer-container::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                /* Radial vignette anchored at ~82% from top (matching model-info bottom: 80px).
-                   Keeps the dark area centered around the title/desc, not the very bottom corner. */
-                radial-gradient(ellipse 55% 45% at 0% 82%, rgba(0,0,0,0.65) 0%, transparent 100%),
-                /* Thin bottom gradient — just enough to soften the edge, stops at 20% */
-                linear-gradient(to top, rgba(0,0,0,0.35) 0%, transparent 20%);
-            pointer-events: none;
-            z-index: 5;
         }
 
         #sketchfab-iframe {
             width: 100%;
             height: 100%;
             border: 0;
+            display: block;
         }
 
-        .viewer-ui {
-            position: absolute;
-            top: 60px;
-            left: 20px;
-            z-index: 10;
-            pointer-events: none;
+        /* ── Right: Info panel ──────────────────────────────────── */
+        .info-pane {
+            flex: 1 1 38%;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: color-mix(in srgb, var(--bg-color) 85%, transparent);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-left: 1px solid var(--border-dim);
+            padding: 32px 28px 40px;
+            gap: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-dim) transparent;
+        }
+
+        .info-pane::-webkit-scrollbar { width: 4px; }
+        .info-pane::-webkit-scrollbar-track { background: transparent; }
+        .info-pane::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 2px; }
+
+        /* ── Info panel sections ────────────────────────────────── */
+        .info-top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
         }
 
         .back-btn {
-            pointer-events: auto;
-            background: rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            padding: 10px 20px;
-            text-decoration: none;
-            font-size: 0.8rem;
-            letter-spacing: 0.1rem;
-            backdrop-filter: blur(10px);
-            transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 180ms ease;
-            text-transform: uppercase;
-            border-radius: 4px;
-        }
-
-        .back-btn:hover {
-            background: #fff;
-            color: #000;
-            transform: translateY(-1px);
-        }
-
-        /* Top-right UI bar for the Sketchfab link */
-        .viewer-ui-right {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 10;
-        }
-
-        /* "View on Sketchfab" custom button — styled to match the back button
-           but with a subtle Sketchfab brand accent on hover. Hidden by default;
-           shown only when a sketchfab_uid is available (set by renderSketchfab). */
-        .sketchfab-link {
-            display: none;
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
-            background: rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: rgba(255, 255, 255, 0.85);
-            padding: 10px 18px;
+            gap: 6px;
+            background: transparent;
+            border: 1px solid var(--border-dim);
+            color: var(--text-dim);
+            padding: 8px 16px;
             text-decoration: none;
             font-size: 0.75rem;
             letter-spacing: 0.1rem;
-            backdrop-filter: blur(10px);
-            transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 180ms ease;
+            transition: color var(--ui-transition), background var(--ui-transition), border-color var(--ui-transition), transform var(--ui-transition);
             text-transform: uppercase;
-            border-radius: 4px;
-            font-family: 'Inter', sans-serif;
+            border-radius: 999px;
+            font-family: var(--font-display);
         }
-        .sketchfab-link svg {
-            width: 14px;
-            height: 14px;
-            opacity: 0.7;
-            transition: opacity 180ms ease;
-            flex-shrink: 0;
-        }
-        .sketchfab-link:hover {
-            background: rgba(20, 20, 20, 0.85);
-            border-color: rgba(255, 255, 255, 0.4);
-            color: #fff;
+        .back-btn:hover {
+            background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+            border-color: var(--border-strong);
+            color: var(--text-primary);
             transform: translateY(-1px);
-        }
-        .sketchfab-link:hover svg { opacity: 1; }
-
-        .model-info {
-            position: absolute;
-            /* 80px from bottom clears Sketchfab's ~50-60px toolbar safely */
-            bottom: 80px;
-            left: 30px;
-            max-width: 380px;
-            pointer-events: auto;
-            z-index: 10;
         }
 
         .model-title {
-            font-size: 1.5rem;
-            margin: 0;
-            color: #fff;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            /* Multi-layer shadow: close sharp shadow for contrast + wide soft glow for depth.
-               Keeps text crisp on any background without inverting colors. */
-            text-shadow:
-                0 1px 2px rgba(0,0,0,1),
-                0 2px 8px rgba(0,0,0,0.9),
-                0 4px 24px rgba(0,0,0,0.7);
+            font-family: 'Playfair Display', ui-serif, Georgia, serif;
+            font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+            font-weight: 700;
+            line-height: 1.15;
+            color: var(--text-primary);
+            margin: 0 0 14px;
+            letter-spacing: -0.3px;
         }
 
+        /* ── Description ────────────────────────────────────────── */
         .model-desc {
-            color: rgba(255, 255, 255, 0.85);
+            color: var(--text-dim);
             font-size: 0.9rem;
-            margin-top: 10px;
-            line-height: 1.5;
-            /* Softer shadow for body text — legible but not as heavy as the title */
-            text-shadow:
-                0 1px 3px rgba(0,0,0,0.95),
-                0 2px 12px rgba(0,0,0,0.8);
+            line-height: 1.65;
+            margin: 0;
         }
 
         .model-desc.collapsible {
             display: -webkit-box;
-            line-clamp: 3;
-            -webkit-line-clamp: 3;
+            -webkit-line-clamp: 4;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
 
         .model-desc.expanded {
             display: block;
-            max-height: min(38vh, 260px);
-            overflow-y: auto;
-            padding-right: 8px;
         }
 
         .desc-toggle {
             display: none;
             margin-top: 10px;
-            pointer-events: auto;
-            background: rgba(0, 0, 0, 0.55);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            color: rgba(255, 255, 255, 0.82);
+            background: transparent;
+            border: 1px solid var(--border-dim);
+            color: var(--text-dim);
             border-radius: 999px;
-            padding: 6px 12px;
-            font-family: monospace;
+            padding: 5px 14px;
+            font-family: var(--font-code);
             font-size: 0.65rem;
             letter-spacing: 1px;
             cursor: pointer;
-            backdrop-filter: blur(10px);
-            transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 180ms ease;
+            transition: color var(--ui-transition), background var(--ui-transition), border-color var(--ui-transition), transform var(--ui-transition);
         }
-
         .desc-toggle.visible { display: inline-flex; }
         .desc-toggle:hover {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: rgba(255, 255, 255, 0.28);
+            background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+            border-color: var(--border-strong);
+            color: var(--text-primary);
             transform: translateY(-1px);
         }
 
-        #loading-overlay {
-            position: fixed;
-            inset: 0;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            transition: opacity 0.5s ease;
+        /* ── Divider ────────────────────────────────────────────── */
+        .info-divider {
+            width: 100%;
+            height: 1px;
+            background: var(--border-dim);
+            margin: 22px 0;
         }
 
-        .loader-bar {
-            width: 200px;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.1);
-            margin-top: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .loader-progress {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 0%;
-            background: #fff;
-            transition: width 0.3s ease;
-        }
-
-        .status-text {
-            font-size: 0.7rem;
-            letter-spacing: 2px;
-            color: rgba(255, 255, 255, 0.4);
-            margin-top: 10px;
-        }
-
-        /* View Angle Strip — positioned on the right side, vertically centered. */
-        .view-strip {
-            position: absolute;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
+        /* ── View angle strip (inside panel) ────────────────────── */
+        .view-strip-panel {
             display: none;
-            flex-direction: row; /* Switch to row so button is beside thumbs */
-            align-items: center;
-            gap: 10px;
-            z-index: 50;
-            background: rgba(0, 0, 0, 0.55);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 10px;
-            border-radius: 14px;
-            transition: opacity 220ms ease, transform 220ms ease, padding 220ms ease, gap 220ms ease;
         }
-        .view-strip.visible { display: flex; }
-        
+        .view-strip-panel.visible {
+            display: block;
+        }
+
+        .view-strip-header {
+            margin-bottom: 10px;
+        }
+
+        .view-strip-label {
+            font-family: var(--font-code);
+            font-size: 0.65rem;
+            letter-spacing: 0.12rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
         .view-thumb-wrapper {
             display: flex;
-            flex-direction: column;
+            flex-wrap: wrap;
             gap: 8px;
         }
 
@@ -267,57 +196,164 @@
             cursor: pointer;
         }
         .view-thumb {
-            width: 52px;
-            height: 52px;
+            width: 56px;
+            height: 56px;
             object-fit: cover;
-            border-radius: 7px;
+            border-radius: 8px;
             border: 2px solid transparent;
-            opacity: 0.6;
+            opacity: 0.65;
             transition: border-color 0.2s, opacity 0.2s, transform 0.2s;
         }
         .view-thumb:hover {
-            border-color: rgba(255, 255, 255, 0.5);
+            border-color: var(--border-strong);
             opacity: 1;
             transform: scale(1.06);
         }
         .view-thumb-label {
             font-size: 0.5rem;
-            color: rgba(255, 255, 255, 0.4);
-            font-family: monospace;
+            color: var(--text-dim);
+            font-family: var(--font-code);
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
-        /* Inner toggle button sitting beside thumbnails in the view-strip panel */
-        .view-strip-inner-toggle {
-            background: transparent;
-            border: none;
-            color: rgba(255, 255, 255, 0.55);
-            font-family: 'Inter', sans-serif;
-            font-size: 0.55rem;
-            letter-spacing: 0.12rem;
-            text-transform: uppercase;
-            padding: 8px 4px;
-            cursor: pointer;
-            text-align: center;
-            transition: color 0.2s ease;
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            transform: rotate(180deg);
-            border-left: 1px dashed rgba(255, 255, 255, 0.2);
-            margin-right: 2px;
+        /* ── Meta row (date, stats) ─────────────────────────────── */
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
         }
-        .view-strip-inner-toggle:hover {
-            color: rgba(255, 255, 255, 0.85);
-        }
-        /* Collapsed state: hide thumbnails, keep panel */
-        .view-strip.collapsed {
-            padding: 8px 6px;
-        }
-        .view-strip.collapsed .view-thumb-wrapper { display: none; }
-        .view-strip.collapsed .view-strip-inner-toggle { border-left: none; margin-right: 0; }
 
-        /* Lightbox */
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-code);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .meta-item .meta-icon {
+            display: flex;
+            align-items: center;
+            color: var(--text-dim);
+            flex-shrink: 0;
+        }
+
+        /* ── Tech stack tags ────────────────────────────────────── */
+        .tags-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tech-tag {
+            border: 1px solid var(--border-dim);
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-family: var(--font-code);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            transition: color var(--ui-transition), border-color var(--ui-transition), background var(--ui-transition);
+        }
+        .tech-tag:hover {
+            color: var(--text-primary);
+            border-color: var(--border-strong);
+            background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+        }
+
+        /* ── Action buttons ─────────────────────────────────────── */
+        .actions-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color var(--ui-transition), background var(--ui-transition), border-color var(--ui-transition), transform var(--ui-transition);
+            border: 1px solid var(--border-dim);
+            background: transparent;
+            color: var(--text-dim);
+        }
+        .btn-action:hover {
+            background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+            border-color: var(--border-strong);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+        }
+        .btn-action.primary {
+            background: var(--text-primary);
+            color: var(--bg-color);
+            border-color: transparent;
+        }
+        .btn-action.primary:hover {
+            background: color-mix(in srgb, var(--text-primary) 88%, transparent);
+            transform: translateY(-1px);
+        }
+        .btn-action svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            opacity: 0.8;
+        }
+        .btn-action.primary svg { opacity: 1; }
+
+        #btn-download { display: none; }
+
+        /* ── Loading overlay ────────────────────────────────────── */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader-bar {
+            width: 200px;
+            height: 2px;
+            background: var(--border-dim);
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loader-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: var(--text-primary);
+            transition: width 0.3s ease;
+        }
+
+        .status-text {
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            margin-top: 10px;
+            font-family: var(--font-code);
+        }
+
+        /* ── Lightbox ───────────────────────────────────────────── */
         .lightbox-overlay {
             position: fixed;
             inset: 0;
@@ -346,7 +382,7 @@
             color: #fff;
             padding: 8px 18px;
             cursor: pointer;
-            font-family: monospace;
+            font-family: var(--font-code);
             font-size: 0.75rem;
             border-radius: 999px;
             letter-spacing: 1px;
@@ -354,87 +390,49 @@
         }
         .lightbox-close:hover { background: rgba(255,255,255,0.14); transform: translateY(-1px); }
         .lightbox-label {
-            font-family: monospace;
+            font-family: var(--font-code);
             color: rgba(255, 255, 255, 0.4);
             font-size: 0.8rem;
             letter-spacing: 2px;
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* Mobile responsive for model viewer */
+        /* ── Responsive: mobile stacked ─────────────────────────── */
         @media (max-width: 768px) {
-            .model-info {
-                bottom: 60px;
-                left: 16px;
-                max-width: 260px;
+            body { overflow: auto; }
+
+            .split-layout {
+                flex-direction: column;
+                height: auto;
+                min-height: 100dvh;
             }
-            .model-title {
-                font-size: 1.1rem;
-                letter-spacing: 1px;
-            }
-            .model-desc {
-                font-size: 0.78rem;
-                line-height: 1.4;
-            }
-            .viewer-ui {
-                top: 50px;
-                left: 14px;
-            }
-            .back-btn {
-                padding: 8px 14px;
-                font-size: 0.7rem;
-            }
-            .viewer-ui-right {
-                top: 14px;
-                right: 14px;
-            }
-            .sketchfab-link {
-                padding: 8px 12px;
-                font-size: 0.65rem;
-            }
-            /* View strip: move to bottom horizontal strip on mobile */
-            .view-strip {
-                right: auto;
-                left: 50%;
-                top: auto;
-                bottom: 12px;
-                transform: translateX(-50%);
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: center;
-                padding: 8px;
-                gap: 6px;
-                border-radius: 12px;
-                width: auto;
-                max-width: 90%;
-            }
-            .view-thumb-wrapper {
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-            .view-strip-inner-toggle {
-                position: relative;
-                right: auto;
-                top: auto;
-                transform: none;
-                margin-right: 0;
-                writing-mode: horizontal-tb;
-                background: transparent;
-                font-size: 0.45rem;
-                padding: 4px 8px;
-                align-self: center;
+
+            .viewer-pane {
+                flex: none;
                 width: 100%;
-                margin-bottom: 2px;
+                height: 50vh;
+                min-height: 260px;
+            }
+
+            .info-pane {
+                flex: none;
+                width: 100%;
+                height: auto;
+                overflow-y: visible;
                 border-left: none;
-                border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+                border-top: 1px solid var(--border-dim);
+                padding: 24px 20px 40px;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: var(--bg-color);
             }
-            .view-strip.collapsed .view-strip-inner-toggle { border-bottom: none; }
-            .view-thumb {
-                width: 40px;
-                height: 40px;
+
+            .model-title {
+                font-size: 1.5rem;
             }
-            .view-thumb-label { font-size: 0.4rem; }
+
+            .view-thumb { width: 48px; height: 48px; }
+
             #lightbox-img {
                 max-width: 95vw;
                 max-height: 75vh;
@@ -449,15 +447,9 @@
         }
 
         @media (max-width: 480px) {
-            .model-info {
-                bottom: 50px;
-                left: 12px;
-                max-width: 200px;
-            }
-            .model-title { font-size: 0.95rem; }
-            .model-desc { font-size: 0.7rem; }
-            .view-thumb { width: 34px; height: 34px; }
-            .view-strip-inner-toggle { font-size: 0.4rem; padding: 3px 7px; }
+            .info-pane { padding: 20px 16px 36px; }
+            .model-title { font-size: 1.3rem; }
+            .view-thumb { width: 42px; height: 42px; }
         }
     </style>
 </head>
@@ -469,34 +461,113 @@
         });
     </script>
 
+    <!-- Loading overlay -->
     <div id="loading-overlay">
         <div class="loader-bar"><div id="loader-progress" class="loader-progress"></div></div>
         <div class="status-text" id="loader-status">SYNCING_ASSETS...</div>
     </div>
 
-    <div class="viewer-ui">
-        <a href="index.html" class="back-btn">← Back</a>
-    </div>
+    <!-- Split layout -->
+    <div class="split-layout">
 
-    <!-- View on Sketchfab button — href and visibility set dynamically by renderSketchfab() -->
-    <div class="viewer-ui-right">
-        <a id="sketchfab-link" class="sketchfab-link" target="_blank" rel="noopener noreferrer">
-            <!-- External link icon -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                <polyline points="15 3 21 3 21 9"/>
-                <line x1="10" y1="14" x2="21" y2="3"/>
-            </svg>
-            View on Sketchfab
-        </a>
-    </div>
+        <!-- LEFT: 3D viewer -->
+        <div class="viewer-pane">
+            <div id="viewer-container">
+                <!-- Sketchfab iframe or image fallback injected here -->
+            </div>
+        </div>
 
-    <div id="viewer-container">
-        <!-- Sketchfab embed or image fallback will be injected here -->
-    </div>
+        <!-- RIGHT: Info panel -->
+        <aside class="info-pane" id="info-pane">
 
-    <!-- View Angle Thumbnail Strip -->
-    <div class="view-strip" id="view-strip"></div>
+            <!-- Top bar: back button -->
+            <div class="info-top-bar">
+                <a href="index.html" class="back-btn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    Back
+                </a>
+            </div>
+
+            <!-- Title -->
+            <h1 id="m-title" class="model-title">MODEL_VIEWER</h1>
+
+            <!-- Description + toggle -->
+            <p id="m-desc" class="model-desc">Loading metadata...</p>
+            <button id="desc-toggle" class="desc-toggle" type="button" aria-expanded="false">MORE</button>
+
+            <div class="info-divider"></div>
+
+            <!-- View angle thumbnails (moved inside panel) -->
+            <div class="view-strip-panel" id="view-strip">
+                <div class="view-strip-header">
+                    <span class="view-strip-label">View Angles</span>
+                </div>
+                <div class="view-thumb-wrapper" id="view-thumb-wrapper"></div>
+            </div>
+            <div class="info-divider" id="views-divider" style="display:none;"></div>
+
+            <!-- Meta: date + Sketchfab stats -->
+            <div class="meta-row" id="meta-row">
+                <div class="meta-item" id="meta-date" style="display:none;">
+                    <span class="meta-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                    </span>
+                    <span id="meta-date-val">—</span>
+                </div>
+                <div class="meta-item" id="meta-likes" style="display:none;">
+                    <span class="meta-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                    </span>
+                    <span id="meta-likes-val">—</span>
+                </div>
+                <div class="meta-item" id="meta-views" style="display:none;">
+                    <span class="meta-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </span>
+                    <span id="meta-views-val">—</span>
+                </div>
+            </div>
+
+            <div class="info-divider" id="meta-divider" style="display:none;"></div>
+
+            <!-- Tech stack tags -->
+            <div class="tags-row" id="tags-row" style="display:none;"></div>
+            <div class="info-divider" id="tags-divider" style="display:none;"></div>
+
+            <!-- Action buttons -->
+            <div class="actions-row">
+                <!-- Download .blend (shown only if blend_download_url exists) -->
+                <a id="btn-download" class="btn-action primary" href="#" download>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download .blend
+                </a>
+                <!-- View on Sketchfab (shown only when sketchfab_uid exists) -->
+                <a id="sketchfab-link" class="btn-action" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    View on Sketchfab
+                </a>
+            </div>
+
+        </aside>
+    </div>
 
     <!-- Lightbox Modal -->
     <div class="lightbox-overlay" id="lightbox" style="display:none;" onclick="closeLightbox()">
@@ -505,18 +576,11 @@
         <div id="lightbox-label" class="lightbox-label"></div>
     </div>
 
-    <div class="model-info">
-        <h1 id="m-title" class="model-title">MODEL_VIEWER</h1>
-        <p id="m-desc" class="model-desc">Loading metadata...</p>
-        <button id="desc-toggle" class="desc-toggle" type="button" aria-expanded="false">MORE</button>
-    </div>
-
-    <!-- Firebase SDKs -->
+    <!-- Page transition handler -->
     <script>
         (function() {
             var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             if (reduceMotion) return;
-
             document.querySelectorAll('a[href]').forEach(function(link) {
                 link.addEventListener('click', function(e) {
                     var url;
@@ -525,39 +589,68 @@
                     if (link.target && link.target !== '_self') return;
                     e.preventDefault();
                     document.body.classList.add('page-leave');
-                    setTimeout(function() {
-                        window.location.href = url.href;
-                    }, 260);
+                    setTimeout(function() { window.location.href = url.href; }, 260);
                 });
             });
         })();
     </script>
+
+    <!-- Main module -->
     <script type="module">
         import { db } from "/js/firebase-config.js";
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const projectId = urlParams.get('id');
+        const urlParams    = new URLSearchParams(window.location.search);
+        const projectId    = urlParams.get('id');
 
-        const loaderProgress = document.getElementById('loader-progress');
-        const loaderStatus = document.getElementById('loader-status');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const viewStrip = document.getElementById('view-strip');
-        const modelDesc = document.getElementById('m-desc');
-        const descToggle = document.getElementById('desc-toggle');
+        const loaderProgress  = document.getElementById('loader-progress');
+        const loaderStatus    = document.getElementById('loader-status');
+        const loadingOverlay  = document.getElementById('loading-overlay');
+        const modelDesc       = document.getElementById('m-desc');
+        const descToggle      = document.getElementById('desc-toggle');
+
+        // ── Helpers ──────────────────────────────────────────────────────────
+
+        function formatCount(n) {
+            if (n == null) return '—';
+            if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+            return String(n);
+        }
+
+        function formatDate(value) {
+            if (!value) return null;
+            let d;
+            // Firestore Timestamp object
+            if (value && typeof value.toDate === 'function') {
+                d = value.toDate();
+            } else if (typeof value === 'string' || typeof value === 'number') {
+                d = new Date(value);
+            } else {
+                return null;
+            }
+            if (isNaN(d.getTime())) return null;
+            return d.toLocaleDateString('id-ID', { year: 'numeric', month: 'numeric', day: 'numeric' });
+        }
+
+        function showMeta() {
+            const metaRow     = document.getElementById('meta-row');
+            const metaDivider = document.getElementById('meta-divider');
+            const hasVisible  = [...metaRow.querySelectorAll('.meta-item')].some(el => el.style.display !== 'none');
+            if (hasVisible) metaDivider.style.display = '';
+        }
+
+        // ── Description toggle ───────────────────────────────────────────────
 
         function setupDescriptionToggle() {
             if (!modelDesc || !descToggle) return;
-
             modelDesc.classList.remove('collapsible', 'expanded');
             descToggle.classList.remove('visible');
             descToggle.textContent = 'MORE';
             descToggle.setAttribute('aria-expanded', 'false');
 
             requestAnimationFrame(() => {
-                const needsToggle = modelDesc.scrollHeight > modelDesc.clientHeight + 4 || modelDesc.textContent.length > 180;
+                const needsToggle = modelDesc.scrollHeight > modelDesc.clientHeight + 4 || modelDesc.textContent.length > 200;
                 if (!needsToggle) return;
-
                 modelDesc.classList.add('collapsible');
                 descToggle.classList.add('visible');
             });
@@ -571,6 +664,119 @@
             descToggle.setAttribute('aria-expanded', String(isExpanded));
         });
 
+        // ── Lightbox ─────────────────────────────────────────────────────────
+
+        window.openLightbox = function(imgUrl, label) {
+            document.getElementById('lightbox-img').src = imgUrl;
+            document.getElementById('lightbox-label').textContent = label;
+            document.getElementById('lightbox').style.display = 'flex';
+        };
+        window.closeLightbox = function() {
+            document.getElementById('lightbox').style.display = 'none';
+            document.getElementById('lightbox-img').src = '';
+        };
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') window.closeLightbox(); });
+
+        // ── View angle thumbnails ─────────────────────────────────────────────
+
+        function renderViewStrip(views) {
+            const viewKeys       = ['front','back','left','right','top','bottom'];
+            const availableViews = viewKeys.filter(k => views[k]);
+            if (!availableViews.length) return;
+
+            const stripPanel   = document.getElementById('view-strip');
+            const thumbWrapper = document.getElementById('view-thumb-wrapper');
+            const viewsDivider = document.getElementById('views-divider');
+
+            thumbWrapper.innerHTML = availableViews.map(key => `
+                <div class="view-thumb-container" onclick="openLightbox('${views[key]}', '${key.toUpperCase()} VIEW')">
+                    <img src="${views[key]}" class="view-thumb" alt="${key} view" loading="lazy">
+                    <span class="view-thumb-label">${key}</span>
+                </div>
+            `).join('');
+
+            stripPanel.classList.add('visible');
+            viewsDivider.style.display = '';
+        }
+
+        // ── Sketchfab public API ──────────────────────────────────────────────
+
+        async function fetchSketchfabStats(uid) {
+            try {
+                const res = await fetch(`https://api.sketchfab.com/v3/models/${uid}`);
+                if (!res.ok) return;
+                const json = await res.json();
+
+                const likeCount  = json.likeCount  ?? json.likes;
+                const viewCount  = json.viewCount  ?? json.viewerCount;
+                const published  = json.publishedAt;
+
+                if (likeCount != null) {
+                    const el = document.getElementById('meta-likes');
+                    document.getElementById('meta-likes-val').textContent = formatCount(likeCount);
+                    el.style.display = 'flex';
+                }
+                if (viewCount != null) {
+                    const el = document.getElementById('meta-views');
+                    document.getElementById('meta-views-val').textContent = formatCount(viewCount);
+                    el.style.display = 'flex';
+                }
+                if (published) {
+                    const formatted = formatDate(published);
+                    if (formatted) {
+                        const el = document.getElementById('meta-date');
+                        document.getElementById('meta-date-val').textContent = formatted;
+                        el.style.display = 'flex';
+                    }
+                }
+                showMeta();
+            } catch (err) {
+                console.warn('Sketchfab API fetch failed:', err);
+            }
+        }
+
+        // ── Render helpers ────────────────────────────────────────────────────
+
+        function renderImageHero(url) {
+            const container = document.getElementById('viewer-container');
+            container.innerHTML = `<img src="${url}" style="max-height:100%; max-width:100%; object-fit:contain; border-radius:8px;" alt="Model preview">`;
+            loaderProgress.style.width = "100%";
+            setTimeout(() => {
+                loadingOverlay.style.opacity = "0";
+                setTimeout(() => loadingOverlay.style.display = "none", 500);
+            }, 300);
+        }
+
+        function renderSketchfab(uid) {
+            loaderStatus.innerText = "INITIALIZING_SKETCHFAB...";
+            const container = document.getElementById('viewer-container');
+            const iframe    = document.createElement('iframe');
+            iframe.id       = "sketchfab-iframe";
+            iframe.src      = `https://sketchfab.com/models/${uid}/embed?autostart=1&internal=1&tracking=0&ui_ar=0&ui_infos=0&ui_watermark=0`;
+            iframe.allow    = "autoplay; fullscreen; xr-spatial-tracking";
+
+            const sfLink = document.getElementById('sketchfab-link');
+            if (sfLink) {
+                sfLink.href = `https://sketchfab.com/models/${uid}`;
+                sfLink.style.display = 'inline-flex';
+            }
+
+            iframe.onload = () => {
+                loaderProgress.style.width = "100%";
+                setTimeout(() => {
+                    loadingOverlay.style.opacity = "0";
+                    setTimeout(() => loadingOverlay.style.display = "none", 500);
+                }, 500);
+            };
+
+            container.appendChild(iframe);
+
+            // Fetch public stats in parallel
+            fetchSketchfabStats(uid);
+        }
+
+        // ── Main init ─────────────────────────────────────────────────────────
+
         async function initViewer() {
             if (!projectId) {
                 loaderStatus.innerText = "ERROR: NO_ID_SPECIFIED";
@@ -579,7 +785,7 @@
 
             try {
                 loaderProgress.style.width = "30%";
-                const docRef = doc(db, "projects", projectId);
+                const docRef  = doc(db, "projects", projectId);
                 const docSnap = await getDoc(docRef);
 
                 if (!docSnap.exists()) {
@@ -588,49 +794,51 @@
                 }
 
                 const data = docSnap.data();
+
+                // Title
                 document.getElementById('m-title').innerText = data.title || 'UNTITLED';
+
+                // Description
                 if (modelDesc) {
                     modelDesc.innerText = data.description || '';
                     setupDescriptionToggle();
                 }
-                loaderProgress.style.width = "60%";
 
-                // Render view angle thumbnails if model_views data exists.
-                const views = data.model_views || {};
-                const viewKeys = ['front','back','left','right','top','bottom'];
-                const availableViews = viewKeys.filter(k => views[k]);
-                if (viewStrip && availableViews.length > 0) {
-                    viewStrip.classList.add('visible');
-                    viewStrip.classList.add('collapsed');
-
-                    // Inner hide/show toggle button at the top of the panel
-                    const thumbsHtml = availableViews.map(key => `
-                        <div class="view-thumb-container" onclick="openLightbox('${views[key]}', '${key.toUpperCase()} VIEW')">
-                            <img src="${views[key]}" class="view-thumb" alt="${key} view" loading="lazy">
-                            <span class="view-thumb-label">${key}</span>
-                        </div>
-                    `).join('');
-
-                    viewStrip.innerHTML = `
-                        <button class="view-strip-inner-toggle" id="view-strip-inner-toggle" type="button">SHOW</button>
-                        <div class="view-thumb-wrapper">
-                            ${thumbsHtml}
-                        </div>
-                    `;
-
-                    // Wire up the inner toggle button
-                    const innerToggle = document.getElementById('view-strip-inner-toggle');
-                    innerToggle?.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const isCollapsed = viewStrip.classList.toggle('collapsed');
-                        innerToggle.textContent = isCollapsed ? 'SHOW' : 'HIDE';
-                    });
-                } else if (viewStrip) {
-                    viewStrip.className = 'view-strip';
-                    viewStrip.innerHTML = '';
+                // Created date from Firestore (if no Sketchfab uid, or as fallback)
+                if (data.created_at && !data.sketchfab_uid) {
+                    const formatted = formatDate(data.created_at);
+                    if (formatted) {
+                        const el = document.getElementById('meta-date');
+                        document.getElementById('meta-date-val').textContent = formatted;
+                        el.style.display = 'flex';
+                        showMeta();
+                    }
                 }
 
-                // Priority: Sketchfab embed > front view image > icon_url fallback.
+                // Tech stack tags
+                const stack = data.stack || [];
+                if (stack.length) {
+                    const tagsRow    = document.getElementById('tags-row');
+                    const tagsDivider = document.getElementById('tags-divider');
+                    tagsRow.innerHTML = stack.map(t => `<span class="tech-tag">${t}</span>`).join('');
+                    tagsRow.style.display = 'flex';
+                    tagsDivider.style.display = '';
+                }
+
+                // Download .blend button
+                if (data.blend_download_url) {
+                    const btn = document.getElementById('btn-download');
+                    btn.href = data.blend_download_url;
+                    btn.style.display = 'inline-flex';
+                }
+
+                loaderProgress.style.width = "60%";
+
+                // View angle thumbnails
+                const views = data.model_views || {};
+                renderViewStrip(views);
+
+                // Viewer: Sketchfab > front view > icon_url
                 if (data.sketchfab_uid) {
                     renderSketchfab(data.sketchfab_uid);
                 } else if (views.front) {
@@ -645,56 +853,6 @@
                 console.error(err);
                 loaderStatus.innerText = "ERROR: " + (err.code || err.message);
             }
-        }
-
-        function renderImageHero(url) {
-            const container = document.getElementById('viewer-container');
-            container.innerHTML = `<img src="${url}" style="max-height:85vh; max-width:88vw; object-fit:contain; border-radius:8px; box-shadow:0 0 60px rgba(0,0,0,0.6);" alt="Model preview">`;
-            loaderProgress.style.width = "100%";
-            setTimeout(() => {
-                loadingOverlay.style.opacity = "0";
-                setTimeout(() => loadingOverlay.style.display = "none", 500);
-            }, 300);
-        }
-
-        // Lightbox controls (global scope for inline onclick).
-        window.openLightbox = function(imgUrl, label) {
-            document.getElementById('lightbox-img').src   = imgUrl;
-            document.getElementById('lightbox-label').textContent = label;
-            document.getElementById('lightbox').style.display = 'flex';
-        };
-        window.closeLightbox = function() {
-            document.getElementById('lightbox').style.display = 'none';
-            document.getElementById('lightbox-img').src = '';
-        };
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') window.closeLightbox(); });
-
-        function renderSketchfab(uid) {
-            loaderStatus.innerText = "INITIALIZING_SKETCHFAB...";
-            const container = document.getElementById('viewer-container');
-            const iframe = document.createElement('iframe');
-            iframe.id = "sketchfab-iframe";
-            iframe.src = `https://sketchfab.com/models/${uid}/embed?autostart=1&internal=1&tracking=0&ui_ar=0&ui_infos=0&ui_watermark=0`;
-            iframe.allow = "autoplay; fullscreen; xr-spatial-tracking";
-
-            // Show our custom "View on Sketchfab" button and point it at the model page.
-            // We use our own button (ui_watermark=0 hides Sketchfab's built-in one)
-            // so we can control its position and style independently.
-            const sfLink = document.getElementById('sketchfab-link');
-            if (sfLink) {
-                sfLink.href = `https://sketchfab.com/models/${uid}`;
-                sfLink.style.display = 'flex';
-            }
-            
-            iframe.onload = () => {
-                loaderProgress.style.width = "100%";
-                setTimeout(() => {
-                    loadingOverlay.style.opacity = "0";
-                    setTimeout(() => loadingOverlay.style.display = "none", 500);
-                }, 500);
-            };
-
-            container.appendChild(iframe);
         }
 
         initViewer();

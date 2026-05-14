@@ -1,6 +1,8 @@
 import { db } from "./js/firebase-config.js";
 import { collection, getDocs, query, orderBy, limit, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import Lenis from "https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/+esm";
+import { initProjectExpand, getProjectLimit, getInitialLimit, updateProjectControls, resetExpandState } from "./js/project-expand.js";
+import { triggerSkeletonExit } from "./js/animations.js";
 
 /* ... (Lenis and Canvas code remains same) ... */
 
@@ -25,6 +27,27 @@ function normalizeLogTags(raw) {
     return tags.length ? tags : ["SYSTEM"];
 }
 
+/**
+ * Marks a section as skeleton-loaded and triggers skeleton exit animation.
+ * If skeletons are still in the DOM (e.g. content was appended rather than replaced),
+ * triggerSkeletonExit handles the fade-out. If skeletons were already removed by
+ * innerHTML replacement, this marks the section so the 8-second timeout won't fire.
+ * @param {string} sectionId - The id of the parent section element
+ */
+function markSectionLoaded(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+
+    // If skeletons are still present, animate them out
+    const skeletons = section.querySelectorAll('[data-skeleton]');
+    if (skeletons.length) {
+        triggerSkeletonExit(section);
+    } else {
+        // Skeletons already removed by innerHTML — just mark as loaded
+        section.dataset.skeletonLoaded = 'true';
+    }
+}
+
 // 4. DEV LOGS
 async function loadDevLogs() {
     const container = document.getElementById("devlogs-container");
@@ -36,6 +59,7 @@ async function loadDevLogs() {
 
         if (snapshot.empty) {
             container.innerHTML = `<div class="devlog-empty">// NOTHING DEPLOYED YET</div>`;
+            markSectionLoaded('logs');
             return;
         }
 
@@ -46,7 +70,7 @@ async function loadDevLogs() {
             const updatedLabel = data.updated_at ? formatLogTimestamp(data.updated_at) : null;
 
             return `
-                <article class="devlog-card">
+                <article class="devlog-card" data-animate-child>
                     <div class="devlog-meta">
                         <div class="devlog-timeblock">
                             <span class="devlog-time">${escapeHtml(createdLabel)}</span>
@@ -62,9 +86,11 @@ async function loadDevLogs() {
         }).join("");
 
         container.innerHTML = html;
+        markSectionLoaded('logs');
     } catch (error) {
         console.error("Dev Logs Error", error);
         container.innerHTML = `<div class="devlog-empty">// FAILED_TO_LOAD_LOGS</div>`;
+        markSectionLoaded('logs');
     }
 }
 
@@ -85,6 +111,7 @@ async function loadStats() {
 
         if (snapshot.empty) {
             grid.innerHTML = ""; // No stats configured, show nothing
+            markSectionLoaded('about');
             return;
         }
 
@@ -99,6 +126,7 @@ async function loadStats() {
                 <p>${escapeHtml(stat.label)}</p>
             </div>
         `).join("");
+        markSectionLoaded('about');
     } catch (error) {
         console.error("Failed to load stats", error);
         grid.innerHTML = fallback.map(stat => `
@@ -107,6 +135,7 @@ async function loadStats() {
                 <p>${escapeHtml(stat.label)}</p>
             </div>
         `).join("");
+        markSectionLoaded('about');
     }
 }
 
@@ -189,6 +218,8 @@ async function loadProjects(filterType = "ALL") {
             querySnapshot.forEach((doc) => {
                 cachedProjects.push({ id: doc.id, ...doc.data() });
             });
+            // Sort pinned projects first
+            cachedProjects.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
         }
 
         // FILTER
@@ -199,6 +230,7 @@ async function loadProjects(filterType = "ALL") {
         // RENDER
         if (displayData.length === 0) {
             container.innerHTML = `<div class="terminal-text" style="text-align:center;">No projects found.</div>`;
+            markSectionLoaded('projects');
             return;
         }
 
@@ -208,7 +240,7 @@ async function loadProjects(filterType = "ALL") {
             const stackHtml = stack.map(tech => `<span class="tech-tag">${tech}</span>`).join("");
             
             html += `
-                <div class="project-row">
+                <div class="project-row${data.pinned ? ' pinned' : ''}" data-animate-child>
                     <!-- ICON -->
                     <div class="project-icon-container">
                         ${data.icon_url ? `<img src="${data.icon_url}" class="project-icon" alt="${data.title}">` : '<div style="color:#333;">NO_IMG</div>'}
@@ -233,13 +265,21 @@ async function loadProjects(filterType = "ALL") {
                         ${(() => {
                             let targetLink = data.link || "#";
                             let targetTarget = "_blank";
+                            let buttonText = "Open";
                             
                             if (data.type === "3D Model" || data.type === "Model") {
                                 targetLink = `model?id=${data.id}`;
                                 targetTarget = "_self"; // Open in same tab
+                                buttonText = "View 3D Model";
+                            } else if (data.type === "Game") {
+                                buttonText = "Download Game";
+                            } else if (data.type === "Web") {
+                                buttonText = "Open Site";
+                            } else if (data.type === "Software") {
+                                buttonText = "Download";
                             }
                             
-                            return `<a href="${targetLink}" target="${targetTarget}" class="btn-access" style="width:100%; text-align:center;">Open</a>`;
+                            return `<a href="${targetLink}" target="${targetTarget}" class="btn-access">${buttonText}</a>`;
                         })()}
                     </div>
                 </div>
@@ -248,18 +288,22 @@ async function loadProjects(filterType = "ALL") {
 
         container.innerHTML = html;
         setupProjectDescriptionToggles(container);
+        markSectionLoaded('projects');
 
     } catch (error) {
         console.error("Error loading projects:", error);
-        container.innerHTML = `<div class="terminal-text" style="text-align:center;">Couldn’t load projects.</div>`;
+        container.innerHTML = `<div class="terminal-text" style="text-align:center;">Couldn't load projects.</div>`;
+        markSectionLoaded('projects');
     }
 }
 
 // Attach Filter Listener
+// Listen for 'filter-animate-done' (dispatched by animations.js after fade-out)
+// instead of 'change' so the fade-out animation plays before DOM replacement.
 document.addEventListener("DOMContentLoaded", () => {
     const filter = document.getElementById("project-filter");
     if(filter) {
-        filter.addEventListener("change", (e) => loadProjects(e.target.value));
+        filter.addEventListener("filter-animate-done", (e) => loadProjects(filter.value));
     }
 });
 
@@ -271,7 +315,10 @@ async function loadTechStack() {
     try {
         const q = query(collection(db, "tech_stack"), orderBy("category"));
         const snapshot = await getDocs(q);
-        if(snapshot.empty) return; 
+        if(snapshot.empty) {
+            markSectionLoaded('stack');
+            return;
+        }
 
         container.innerHTML = ""; 
         const groups = {};
@@ -306,7 +353,7 @@ async function loadTechStack() {
         for (const category of sortedKeys) {
             const items = groups[category];
             const html = `
-                <div class="stack-card">
+                <div class="stack-card" data-animate-child>
                     <div class="card-header">// ${category}</div>
                     <ul>
                         ${items.map(item => `<li><span>${item}</span></li>`).join("")}
@@ -315,7 +362,11 @@ async function loadTechStack() {
             `;
             container.innerHTML += html;
         }
-    } catch (e) { console.log("Stack Error:", e); }
+        markSectionLoaded('stack');
+    } catch (e) {
+        console.log("Stack Error:", e);
+        markSectionLoaded('stack');
+    }
 }
 
 // 3. EXPERIENCE TIMELINE
@@ -332,6 +383,7 @@ async function loadExperience() {
 
         if (snapshot.empty) {
             container.innerHTML = `<div class="timeline-item"><div class="time-content"><h3>NO DATA FOUND</h3></div></div>`;
+            markSectionLoaded('experience');
             return;
         }
 
@@ -352,7 +404,7 @@ async function loadExperience() {
             }
 
             fullHTML += `
-                <div class="timeline-item">
+                <div class="timeline-item" data-animate-child>
                     <div class="time-marker">${data.period}</div>
                     <div class="time-content">
                         <h3>${data.role}</h3>
@@ -364,10 +416,12 @@ async function loadExperience() {
             `;
         });
         container.innerHTML = fullHTML;
+        markSectionLoaded('experience');
 
     } catch(e) { 
         console.error("Exp Error:", e);
         container.innerHTML = `<div class="timeline-item"><div class="time-content"><h3 style="color:red">ERROR LOADING: ${e.message}</h3></div></div>`;
+        markSectionLoaded('experience');
     }
 }
 
@@ -467,7 +521,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 */
 
 // Initialize Lenis with EXACT Reference Configuration
-const lenis = new Lenis({
+export const lenis = new Lenis({
     duration: 2.0, // EXACT VALUE from research (creates the "heavy" feel)
     easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Custom ExpoOut easing
     direction: 'vertical',
@@ -509,5 +563,3 @@ if (fpsEl) {
 }
 
 // Glitch effect disabled for minimal theme.
-
-
