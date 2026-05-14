@@ -559,36 +559,15 @@ function setupModelViewSlot(angleKey) {
     const previewEl  = document.getElementById(`preview-${angleKey}`);
     if (!fileInput || !urlInput) return;
 
-    fileInput.addEventListener('change', async () => {
+    // Only show local preview on file selection — actual upload happens on form submit.
+    fileInput.addEventListener('change', () => {
         const file = fileInput.files[0];
         if (!file) return;
-
-        // Immediately show local blob preview before upload completes.
         previewEl.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="preview">`;
-        statusEl.textContent  = 'UPLOADING...';
-        statusEl.className    = 'slot-status uploading';
-        fileInput.disabled    = true;
-
-        try {
-            const cloudUrl = await uploadToCloudinary(file);
-            urlInput.value        = cloudUrl;
-            // Replace blob preview with stable Cloudinary URL.
-            previewEl.innerHTML = `<img src="${cloudUrl}" alt="preview">`;
-            statusEl.textContent  = 'UPLOADED';
-            statusEl.className    = 'slot-status done';
-
-            // If this angle's star is active, update the icon_url
-            const starBtn = document.querySelector(`.star-cover-btn[data-angle="${angleKey}"]`);
-            if (starBtn && starBtn.classList.contains('active')) {
-                const iconInput = document.getElementById('p-icon');
-                if (iconInput) iconInput.value = cloudUrl;
-            }
-        } catch (err) {
-            statusEl.textContent = 'FAILED: ' + err.message;
-            statusEl.className   = 'slot-status error';
-        } finally {
-            fileInput.disabled = false;
-        }
+        statusEl.textContent = 'READY TO UPLOAD';
+        statusEl.className   = 'slot-status';
+        // Clear any previously uploaded URL so submit knows to re-upload
+        urlInput.value = '';
     });
 }
 
@@ -597,37 +576,84 @@ function initModelViewSlots() {
 }
 
 /**
- * Auto-uploads the standard icon file (for Game/Web/Software) immediately on selection,
- * so the Cloudinary URL is stored in the text input and survives page refreshes.
+ * Shows a local preview for the standard icon file on selection.
+ * Actual upload to Cloudinary happens on form submit.
  */
 function initStandardIconUpload() {
     const fileInput = document.getElementById('p-icon-file');
     const urlInput = document.getElementById('p-icon');
     if (!fileInput || !urlInput) return;
 
-    fileInput.addEventListener('change', async () => {
+    fileInput.addEventListener('change', () => {
         const file = fileInput.files[0];
         if (!file) return;
-
-        fileInput.disabled = true;
-        const originalPlaceholder = urlInput.placeholder;
-        urlInput.placeholder = 'UPLOADING...';
-
-        try {
-            const cloudUrl = await uploadToCloudinary(file);
-            urlInput.value = cloudUrl;
-            urlInput.placeholder = originalPlaceholder;
-        } catch (err) {
-            urlInput.placeholder = originalPlaceholder;
-            alert('ICON UPLOAD FAILED: ' + err.message);
-        } finally {
-            fileInput.disabled = false;
-        }
+        // Clear any old URL so submit knows to upload the new file
+        urlInput.value = '';
+        urlInput.placeholder = file.name;
     });
 }
 
 /**
- * Handles .blend file upload to GitHub Releases via server proxy.
+ * Uploads FormData to a URL using XHR so we can track progress.
+ * Returns a Promise that resolves with the parsed JSON response.
+ * @param {string} url - endpoint
+ * @param {FormData} formData
+ * @param {function(number):void} onProgress - called with 0-100 percent
+ */
+function uploadWithProgress(url, formData, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                onProgress(Math.round((e.loaded / e.total) * 100));
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(data);
+                } else {
+                    reject(new Error(data.error || `HTTP ${xhr.status}`));
+                }
+            } catch (e) {
+                reject(new Error('Invalid server response'));
+            }
+        });
+
+        xhr.addEventListener('error', () => reject(new Error('Network error')));
+        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+        xhr.send(formData);
+    });
+}
+
+/**
+ * Renders a progress bar + percentage inside statusEl.
+ * Returns an update function: updateBar(percent).
+ */
+function createProgressBar(statusEl) {
+    statusEl.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+            <div style="flex:1; height:4px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden;">
+                <div id="glb-progress-bar" style="height:100%; width:0%; background:var(--text-primary); border-radius:999px; transition:width 0.2s ease;"></div>
+            </div>
+            <span id="glb-progress-pct" style="font-family:var(--font-code); font-size:0.7rem; color:var(--text-dim); min-width:32px; text-align:right;">0%</span>
+        </div>
+        <div style="font-family:var(--font-code); font-size:0.72rem; color:var(--accent); margin-top:4px;">Uploading to server...</div>
+    `;
+    const bar = statusEl.querySelector('#glb-progress-bar');
+    const pct = statusEl.querySelector('#glb-progress-pct');
+    return (percent) => {
+        if (bar) bar.style.width = percent + '%';
+        if (pct) pct.textContent = percent + '%';
+    };
+}
+
+/**
+ * Handles .glb/.gltf file upload to GitHub Releases via server proxy.
  */
 function initBlendUpload() {
     const uploadBtn = document.getElementById('btn-upload-blend');
@@ -639,12 +665,12 @@ function initBlendUpload() {
     uploadBtn.addEventListener('click', async () => {
         const file = fileInput.files[0];
         if (!file) {
-            alert('Please select a .blend file first.');
+            alert('Please select a .glb or .gltf file first.');
             return;
         }
 
-        if (!file.name.toLowerCase().endsWith('.blend')) {
-            alert('Only .blend files are allowed.');
+        if (!file.name.toLowerCase().match(/\.(glb|gltf)$/)) {
+            alert('Only .glb and .gltf files are allowed.');
             return;
         }
 
@@ -655,7 +681,7 @@ function initBlendUpload() {
 
         uploadBtn.disabled = true;
         uploadBtn.textContent = 'UPLOADING...';
-        statusEl.innerHTML = '<span style="color: var(--accent);">Uploading to GitHub Releases...</span>';
+        const updateBar = createProgressBar(statusEl);
 
         try {
             const formData = new FormData();
@@ -665,26 +691,20 @@ function initBlendUpload() {
             formData.append('githubRepo', GITHUB_REPO);
             formData.append('githubTag', GITHUB_RELEASE_TAG);
 
-            const resp = await fetch('/api/upload-github', {
-                method: 'POST',
-                body: formData
+            const data = await uploadWithProgress('/api/upload-github', formData, (pct) => {
+                updateBar(pct);
+                uploadBtn.textContent = `UPLOADING ${pct}%`;
             });
-
-            const data = await resp.json();
-
-            if (!resp.ok) {
-                throw new Error(data.error || 'Upload failed');
-            }
 
             urlInput.value = data.download_url;
             const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
             statusEl.innerHTML = `<span style="color: #00ff88;">✓ UPLOADED (${sizeMB} MB) — ${data.name}</span>`;
         } catch (err) {
-            console.error('Blend upload error:', err);
+            console.error('GLB upload error:', err);
             statusEl.innerHTML = `<span style="color: #ff4444;">✗ FAILED: ${err.message}</span>`;
         } finally {
             uploadBtn.disabled = false;
-            uploadBtn.textContent = 'UPLOAD .BLEND';
+            uploadBtn.textContent = 'UPLOAD .GLB';
         }
     });
 }
@@ -844,6 +864,7 @@ onAuthStateChanged(auth, async (user) => {
         
         loginPanel.style.display = "none";
         dashboard.style.display = "block";
+        restoreActiveSection();
         loadDashboard();
         subscribeToProjects();
         subscribeToStats();
@@ -1279,15 +1300,30 @@ logoutBtn?.addEventListener("click", async () => {
 });
 
 // --- TAB NAVIGATION ---
+function switchToSection(targetId) {
+    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".admin-section").forEach(s => s.style.display = "none");
+    const targetBtn = document.querySelector(`.nav-btn[data-target="${targetId}"]`);
+    const targetSection = document.getElementById(targetId);
+    if (targetBtn) targetBtn.classList.add("active");
+    if (targetSection) targetSection.style.display = "block";
+    if (targetId === "section-stack") loadStack();
+    localStorage.setItem('admin_active_section', targetId);
+}
+
 document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-        document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll(".admin-section").forEach(s => s.style.display = "none");
-        btn.classList.add("active");
-        document.getElementById(btn.dataset.target).style.display = "block";
-        if(btn.dataset.target === "section-stack") loadStack();
+        switchToSection(btn.dataset.target);
     });
 });
+
+function restoreActiveSection() {
+    const saved = localStorage.getItem('admin_active_section');
+    const validSections = ['section-dashboard', 'section-projects', 'section-stack', 'section-stats', 'section-experience', 'section-logs'];
+    if (saved && validSections.includes(saved)) {
+        switchToSection(saved);
+    }
+}
 
 // --- SKETCHFAB UPLOAD CORE ---
 async function handleSketchfabUpload(file, modelName, description) {
@@ -1325,19 +1361,26 @@ async function handleSketchfabUpload(file, modelName, description) {
     console.log('Response OK:', response.ok);
 
     if (!response.ok) {
-        const errData = await response.json();
+        let errData = {};
+        try { errData = await response.json(); } catch (_) {}
         console.log('Error data from Sketchfab:', errData);
-        
-        // Sketchfab API errors can have multiple formats
-        let errorMsg = 'Unknown Sketchfab error';
-        if (errData.detail) {
+
+        let errorMsg = `HTTP ${response.status}`;
+        if (typeof errData.detail === 'string') {
             errorMsg = errData.detail;
-        } else if (errData.errors && Array.isArray(errData.errors)) {
-            errorMsg = errData.errors.map(e => e.message || e).join(', ');
-        } else if (typeof errData === 'object') {
+        } else if (typeof errData.detail === 'object' && errData.detail !== null) {
+            errorMsg = JSON.stringify(errData.detail);
+        } else if (errData.errors) {
+            errorMsg = Array.isArray(errData.errors)
+                ? errData.errors.map(e => (typeof e === 'string' ? e : JSON.stringify(e))).join(', ')
+                : JSON.stringify(errData.errors);
+        } else if (errData.message) {
+            errorMsg = errData.message;
+        } else if (Object.keys(errData).length > 0) {
             errorMsg = JSON.stringify(errData);
         }
-        console.error('Final error message:', errorMsg);
+
+        console.error('Sketchfab error:', errorMsg);
         throw new Error(`Sketchfab Error (${response.status}): ${errorMsg}`);
     }
 
@@ -1699,27 +1742,27 @@ function toggleEditProject(id, data) {
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div>
-                        <label>3D MODEL FILE <span style="color: var(--text-dim); font-weight: 400;">(FBX, OBJ, DAE, BLEND, STL - Max 100MB)</span></label>
-                        <input type="file" id="edit-p-model-file-${id}" accept=".fbx,.obj,.dae,.blend,.stl" class="view-file-input">
+                        <label>3D MODEL FILE <span style="color: var(--text-dim); font-weight: 400;">(GLB, GLTF, FBX, OBJ, DAE, BLEND, STL - Max 100MB for Sketchfab)</span></label>
+                        <input type="file" id="edit-p-model-file-${id}" accept=".glb,.gltf,.fbx,.obj,.dae,.blend,.stl" class="view-file-input">
                     </div>
                     <div>
-                        <label>SKETCHFAB UID (Manual Override)</label>
-                        <input type="text" class="edit-p-sfuid" value="${data.sketchfab_uid || ''}" placeholder="uid from sketchfab.com">
+                        <label>SKETCHFAB URL or UID</label>
+                        <input type="text" class="edit-p-sfuid" value="${data.sketchfab_uid || ''}" placeholder="Paste URL or UID — auto-extracted">
                     </div>
                 </div>
                 <div class="admin-subpanel" style="margin-top: 16px;">
-                    <h4 style="color:var(--accent); margin:0 0 6px; font-family:var(--font-code); font-size:0.85rem;">/// BLEND FILE DOWNLOAD</h4>
-                    <p style="color:var(--text-dim); font-size:0.72rem; margin:0 0 12px; font-family:var(--font-code);">Upload .blend file to GitHub Releases for public download.</p>
+                    <h4 style="color:var(--accent); margin:0 0 6px; font-family:var(--font-code); font-size:0.85rem;">/// GLB / GLTF FILE DOWNLOAD</h4>
+                    <p style="color:var(--text-dim); font-size:0.72rem; margin:0 0 12px; font-family:var(--font-code);">Upload .glb or .gltf file to GitHub Releases for public download.</p>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end;">
                         <div>
-                            <label>.BLEND FILE</label>
-                            <input type="file" id="edit-blend-file-${id}" accept=".blend" class="view-file-input">
+                            <label>.GLB / GLTF FILE</label>
+                            <input type="file" id="edit-blend-file-${id}" accept=".glb,.gltf" class="view-file-input">
                         </div>
-                        <button type="button" id="edit-btn-upload-blend-${id}" class="btn-brutal outline" style="height: 44px; white-space: nowrap;">UPLOAD .BLEND</button>
+                        <button type="button" id="edit-btn-upload-blend-${id}" class="btn-brutal outline" style="height: 44px; white-space: nowrap;">UPLOAD .GLB</button>
                     </div>
                     <div id="edit-blend-status-${id}" style="margin-top: 8px; font-family: var(--font-code); font-size: 0.75rem;"></div>
                     <div style="margin-top: 10px;">
-                        <label>BLEND DOWNLOAD URL</label>
+                        <label>GLB/GLTF DOWNLOAD URL</label>
                         <input type="text" id="edit-blend-url-${id}" value="${data.blend_download_url || ''}" placeholder="Auto-filled after upload, or paste manually" style="width: 100%;">
                     </div>
                 </div>
@@ -1758,10 +1801,17 @@ function toggleEditProject(id, data) {
                 type: type,
                 description: form.querySelector(".edit-p-desc").value,
                 stack: getSelectedEditStack(id),
-                icon_url: form.querySelector(".edit-p-icon")?.value || "",
-                link: form.querySelector(".edit-p-link")?.value || "",
-                sketchfab_uid: form.querySelector(".edit-p-sfuid")?.value || ""
             };
+
+            // Only include standard fields for non-3D types
+            if (type !== "3D Model") {
+                updates.icon_url = form.querySelector(".edit-p-icon")?.value || "";
+                updates.link = form.querySelector(".edit-p-link")?.value || "";
+            }
+
+            // Only update sketchfab_uid if it has a value (don't overwrite with empty)
+            const sfuidVal = extractSketchfabUid(form.querySelector(".edit-p-sfuid")?.value);
+            if (sfuidVal) updates.sketchfab_uid = sfuidVal;
 
             // Update created_at if date field is filled
             const createdAtInput = document.getElementById(`edit-p-created-at-${id}`);
@@ -1834,8 +1884,8 @@ function setupEditTypeSwitch(projectId) {
 }
 
 /**
- * Wires the .blend file upload button in the edit form.
- * Uploads to GitHub Releases and auto-fills the blend URL input.
+ * Wires the .glb/.gltf file upload button in the edit form.
+ * Uploads to GitHub Releases and auto-fills the download URL input.
  * @param {string} projectId - The project document ID for unique selectors
  */
 function setupEditBlendUpload(projectId) {
@@ -1847,8 +1897,8 @@ function setupEditBlendUpload(projectId) {
 
     uploadBtn.addEventListener('click', async () => {
         const file = fileInput.files[0];
-        if (!file) { alert('Please select a .blend file first.'); return; }
-        if (!file.name.toLowerCase().endsWith('.blend')) { alert('Only .blend files are allowed.'); return; }
+        if (!file) { alert('Please select a .glb or .gltf file first.'); return; }
+        if (!file.name.toLowerCase().match(/\.(glb|gltf)$/)) { alert('Only .glb and .gltf files are allowed.'); return; }
         if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO || !GITHUB_RELEASE_TAG) {
             alert('GitHub configuration incomplete. Check the config section above.');
             return;
@@ -1856,7 +1906,7 @@ function setupEditBlendUpload(projectId) {
 
         uploadBtn.disabled = true;
         uploadBtn.textContent = 'UPLOADING...';
-        statusEl.innerHTML = '<span style="color: var(--accent);">Uploading to GitHub Releases...</span>';
+        const updateBar = createProgressBar(statusEl);
 
         try {
             const formData = new FormData();
@@ -1866,9 +1916,10 @@ function setupEditBlendUpload(projectId) {
             formData.append('githubRepo', GITHUB_REPO);
             formData.append('githubTag', GITHUB_RELEASE_TAG);
 
-            const resp = await fetch('/api/upload-github', { method: 'POST', body: formData });
-            const data = await resp.json();
-            if (!resp.ok) throw new Error(data.error || 'Upload failed');
+            const data = await uploadWithProgress('/api/upload-github', formData, (pct) => {
+                updateBar(pct);
+                uploadBtn.textContent = `UPLOADING ${pct}%`;
+            });
 
             urlInput.value = data.download_url;
             const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
@@ -1877,7 +1928,7 @@ function setupEditBlendUpload(projectId) {
             statusEl.innerHTML = `<span style="color: #ff4444;">✗ FAILED: ${err.message}</span>`;
         } finally {
             uploadBtn.disabled = false;
-            uploadBtn.textContent = 'UPLOAD .BLEND';
+            uploadBtn.textContent = 'UPLOAD .GLB';
         }
     });
 }
@@ -2298,6 +2349,37 @@ function normalizeLogTags(raw) {
     return [];
 }
 
+/**
+ * Extracts a Sketchfab model UID from either a full URL or a bare UID string.
+ * Handles formats:
+ *   - https://sketchfab.com/3d-models/name-UID
+ *   - https://sketchfab.com/models/UID
+ *   - bare UID (32-char hex)
+ * Returns the UID string, or empty string if nothing found.
+ */
+function extractSketchfabUid(input) {
+    if (!input) return '';
+    const trimmed = input.trim();
+    // Try to extract from URL: last path segment after last '-' or last '/'
+    try {
+        const url = new URL(trimmed);
+        if (url.hostname.includes('sketchfab.com')) {
+            const parts = url.pathname.split('/').filter(Boolean);
+            const last = parts[parts.length - 1];
+            // 3d-models/slug-UID: UID is the last hyphen-separated segment (32 hex chars)
+            const hexMatch = last.match(/([0-9a-f]{32})$/i);
+            if (hexMatch) return hexMatch[1];
+            // /models/UID format
+            if (last.match(/^[0-9a-f-]{32,36}$/i)) return last;
+        }
+    } catch (_) {
+        // Not a URL — treat as bare UID
+    }
+    // Already a bare UID (32 hex chars, optionally with hyphens)
+    if (trimmed.match(/^[0-9a-f-]{32,36}$/i)) return trimmed;
+    return trimmed; // Return as-is if we can't parse it
+}
+
 function formatDateInputValue(timestamp) {
     if (!timestamp) return "";
     try {
@@ -2372,30 +2454,19 @@ if(addProjectForm) {
             const iconFile = document.getElementById("p-icon-file").files[0];
             const modelFile = document.getElementById("p-model-file-input")?.files[0];
 
-            // Icon is already uploaded via auto-upload on file selection.
-            // Only upload here as fallback if URL input is still empty and a file is selected.
+            // Upload standard icon if a file is selected and no URL is already set
             if (iconFile && type !== "3D Model" && !iconUrl) {
-                submitBtn.innerText = "UPLOADING_ICON...";
+                submitBtn.innerText = "UPLOADING ICON...";
                 iconUrl = await uploadToCloudinary(iconFile);
             }
 
-            let sketchfabUid = document.getElementById("p-sketchfab-uid")?.value || "";
+            let sketchfabUid = extractSketchfabUid(document.getElementById("p-sketchfab-uid")?.value || "");
             if (type === "3D Model" && modelFile && !sketchfabUid) {
-                // Validate 3D model file
-                const allowedExtensions = ['.fbx', '.obj', '.dae', '.blend', '.stl'];
-                const maxSizeBytes = 100 * 1024 * 1024; // 100MB
-                
+                // Validate 3D model file format only — Sketchfab handles size limits
+                const allowedExtensions = ['.glb', '.gltf', '.fbx', '.obj', '.dae', '.stl', '.blend'];
                 const fileName = modelFile.name.toLowerCase();
                 const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
-                const fileSize = modelFile.size;
-                
-                console.log('3D Model Validation:', {
-                    fileName: fileName,
-                    extension: fileExtension,
-                    size: fileSize,
-                    sizeMB: (fileSize / (1024 * 1024)).toFixed(2) + 'MB'
-                });
-                
+
                 if (!allowedExtensions.includes(fileExtension)) {
                     alert(`ERROR: Invalid file format!\n\nAllowed formats: ${allowedExtensions.join(', ').toUpperCase()}\nYour file: ${fileExtension.toUpperCase()}`);
                     loader.style.display = "none";
@@ -2403,18 +2474,39 @@ if(addProjectForm) {
                     submitBtn.innerText = "EXECUTE UPLOAD";
                     return;
                 }
-                
-                if (fileSize > maxSizeBytes) {
-                    const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
-                    alert(`ERROR: File too large!\n\nMaximum size: 100MB\nYour file: ${sizeMB}MB`);
-                    loader.style.display = "none";
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = "EXECUTE UPLOAD";
-                    return;
-                }
-                
+
                 submitBtn.innerText = "UPLOADING TO SKETCHFAB...";
                 sketchfabUid = await handleSketchfabUpload(modelFile, title, desc);
+            }
+
+            // For 3D Model: upload all view angle images that have a file selected but no URL yet
+            if (type === "3D Model") {
+                const angles = ["front", "back", "left", "right", "top", "bottom"];
+                for (const angle of angles) {
+                    const file = document.getElementById(`file-${angle}`)?.files[0];
+                    const urlInput = document.getElementById(`url-${angle}`);
+                    const statusEl = document.getElementById(`status-${angle}`);
+                    if (file && urlInput && !urlInput.value.trim()) {
+                        if (statusEl) { statusEl.textContent = 'UPLOADING...'; statusEl.className = 'slot-status uploading'; }
+                        submitBtn.innerText = `UPLOADING ${angle.toUpperCase()} VIEW...`;
+                        try {
+                            const cloudUrl = await uploadToCloudinary(file);
+                            urlInput.value = cloudUrl;
+                            if (statusEl) { statusEl.textContent = 'UPLOADED'; statusEl.className = 'slot-status done'; }
+                            // If this angle's star is active, set as cover
+                            const starBtn = document.querySelector(`.star-cover-btn[data-angle="${angle}"]`);
+                            if (starBtn?.classList.contains('active')) {
+                                const iconInput = document.getElementById('p-icon');
+                                if (iconInput) iconInput.value = cloudUrl;
+                                iconUrl = cloudUrl;
+                            }
+                        } catch (err) {
+                            if (statusEl) { statusEl.textContent = 'FAILED: ' + err.message; statusEl.className = 'slot-status error'; }
+                            throw new Error(`Failed to upload ${angle} view: ${err.message}`);
+                        }
+                    }
+                }
+                submitBtn.innerText = "PROCESSING...";
             }
 
             // Validate that at least one tech stack item has been selected.
@@ -2471,6 +2563,9 @@ if(addProjectForm) {
             await addDoc(collection(db, "projects"), projectData);
             alert("PROJECT UPLOADED SUCCESSFULLY");
             addProjectForm.reset();
+            // Restore icon placeholder after reset
+            const iconUrlInput = document.getElementById('p-icon');
+            if (iconUrlInput) iconUrlInput.placeholder = 'assets/images/...';
             localStorage.removeItem('admin_selected_category');
             // Clear all stack checkboxes after form reset (reset() doesn't affect custom elements).
             const optionsContainer = document.getElementById('p-stack-options');

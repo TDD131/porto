@@ -6,5 +6,8 @@
         "destination": "/model.html"
       }
     ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
   }
 }

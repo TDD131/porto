@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const multer = require('multer');
 const FormData = require('form-data');
 const fetch = require('node-fetch');
@@ -12,7 +13,7 @@ const STATIC_DIR = fs.existsSync(PUBLIC_FALLBACK) ? PUBLIC_FALLBACK : __dirname;
 // Multer setup for file uploads (memory storage)
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 500 * 1024 * 1024 } // 500MB max (practical limit for memory-based upload)
+    limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB max (GitHub Releases limit)
 });
 
 const BLOCKED_PATHS = [
@@ -187,10 +188,80 @@ app.post('/api/upload-github', upload.single('file'), async (req, res) => {
     }
 });
 
+// ── View tracking (in-memory, anti-spam) ─────────────────────────────────────
+//
+// Structure: viewerStore[projectId][ipHash] = timestamp (ms)
+// Cooldown: 24 hours per IP per project
+// Cleanup: entries older than 24h are pruned every hour to prevent memory growth
+//
+const VIEW_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const viewerStore = {}; // { [projectId]: { [ipHash]: lastSeenTimestamp } }
+
+// Prune stale entries every hour
+setInterval(() => {
+    const now = Date.now();
+    for (const projectId of Object.keys(viewerStore)) {
+        for (const ipHash of Object.keys(viewerStore[projectId])) {
+            if (now - viewerStore[projectId][ipHash] > VIEW_COOLDOWN_MS) {
+                delete viewerStore[projectId][ipHash];
+            }
+        }
+        if (Object.keys(viewerStore[projectId]).length === 0) {
+            delete viewerStore[projectId];
+        }
+    }
+}, 60 * 60 * 1000);
+
+function getClientIp(req) {
+    // Respect proxy headers (Vercel, etc.)
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) return forwarded.split(',')[0].trim();
+    return req.socket?.remoteAddress || 'unknown';
+}
+
+function hashIp(ip) {
+    return crypto.createHash('sha256').update(ip + 'portfolio_salt_v1').digest('hex').slice(0, 16);
+}
+
+// POST /api/view/:projectId
+// Returns { counted: bool, view_count: number }
+// Firestore increment is done client-side only when counted=true
+app.post('/api/view/:projectId', (req, res) => {
+    const { projectId } = req.params;
+
+    // Basic validation — projectId should be a non-empty alphanumeric-ish string
+    if (!projectId || !/^[\w-]{1,128}$/.test(projectId)) {
+        return res.status(400).json({ error: 'Invalid project ID' });
+    }
+
+    const ip     = getClientIp(req);
+    const ipHash = hashIp(ip);
+    const now    = Date.now();
+
+    if (!viewerStore[projectId]) viewerStore[projectId] = {};
+
+    const lastSeen = viewerStore[projectId][ipHash];
+    const cooldownActive = lastSeen && (now - lastSeen < VIEW_COOLDOWN_MS);
+
+    if (cooldownActive) {
+        // Already counted within 24h — tell client to skip increment
+        return res.json({ counted: false });
+    }
+
+    // Record this view
+    viewerStore[projectId][ipHash] = now;
+    return res.json({ counted: true });
+});
+
 // Rewrite rule: /model/id=xyz -> /model.html?id=xyz
 app.get('/model/id=:id', (req, res) => {
     const { id } = req.params;
     res.redirect(`/model.html?id=${encodeURIComponent(id)}`);
+});
+
+// Serve model.html for /model?id=... (query string format)
+app.get('/model', (req, res) => {
+    res.sendFile(path.join(STATIC_DIR, 'model.html'));
 });
 
 // Graceful fallback for unknown routes

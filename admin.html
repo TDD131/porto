@@ -973,19 +973,19 @@
                             </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: end;">
                                 <div>
-                                    <label>3D MODEL FILE <span style="color: var(--text-dim); font-weight: 400;">(FBX, OBJ, DAE, BLEND, STL - Max 100MB)</span></label>
-                                    <input type="file" id="p-model-file-input" accept=".fbx,.obj,.dae,.blend,.stl">
+                                    <label>3D MODEL FILE <span style="color: var(--text-dim); font-weight: 400;">(GLB, GLTF, FBX, OBJ, DAE, BLEND, STL - Max 100MB for Sketchfab)</span></label>
+                                    <input type="file" id="p-model-file-input" accept=".glb,.gltf,.fbx,.obj,.dae,.blend,.stl">
                                 </div>
                                 <div>
-                                    <label>SKETCHFAB UID (Manual Override)</label>
-                                    <input type="text" id="p-sketchfab-uid" placeholder="uid from sketchfab.com">
+                                    <label>SKETCHFAB URL or UID</label>
+                                    <input type="text" id="p-sketchfab-uid" placeholder="Paste URL or UID — auto-extracted">
                                 </div>
                             </div>
                             <div style="margin-top: 10px;">
-                                <label>.BLEND DOWNLOAD FILE <span style="color: var(--text-dim); font-weight: 400;">(Upload to GitHub Releases - Max 500MB)</span></label>
+                                <label>.GLB / GLTF DOWNLOAD FILE <span style="color: var(--text-dim); font-weight: 400;">(Upload to GitHub Releases - Max 2GB)</span></label>
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start;">
-                                    <input type="file" id="p-blend-file" accept=".blend">
-                                    <button type="button" id="btn-upload-blend" class="btn-brutal outline" style="padding: 12px 20px; font-size: 0.75rem; white-space: nowrap;">UPLOAD .BLEND</button>
+                                    <input type="file" id="p-blend-file" accept=".glb,.gltf">
+                                    <button type="button" id="btn-upload-blend" class="btn-brutal outline" style="padding: 12px 20px; font-size: 0.75rem; white-space: nowrap;">UPLOAD .GLB</button>
                                 </div>
                                 <input type="text" id="p-blend-url" placeholder="Download URL (auto-filled after upload)" style="margin-top: 8px;">
                                 <div id="blend-upload-status" style="font-family: var(--font-code); font-size: 0.75rem; margin-top: 4px;"></div>

@@ -241,6 +241,30 @@
             flex-shrink: 0;
         }
 
+        /* Like button states */
+        button.meta-item {
+            transition: color var(--ui-transition);
+        }
+        button.meta-item:hover {
+            color: var(--text-primary);
+        }
+        button.meta-item:hover .meta-icon { color: var(--text-primary); }
+        button.meta-item.liked {
+            color: #ff4d6d;
+        }
+        button.meta-item.liked .meta-icon { color: #ff4d6d; }
+        button.meta-item.liked .meta-icon svg {
+            fill: #ff4d6d;
+            stroke: #ff4d6d;
+        }
+        @keyframes heartPop {
+            0%   { transform: scale(1); }
+            40%  { transform: scale(1.4); }
+            70%  { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        button.meta-item.just-liked .meta-icon { animation: heartPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
         /* ── Tech stack tags ────────────────────────────────────── */
         .tags-row {
             display: flex;
@@ -519,14 +543,14 @@
                     </span>
                     <span id="meta-date-val">—</span>
                 </div>
-                <div class="meta-item" id="meta-likes" style="display:none;">
+                <button class="meta-item" id="meta-likes" type="button" style="display:none; background:transparent; border:none; padding:0; cursor:pointer; font-family:inherit; color:inherit;" aria-label="Like model">
                     <span class="meta-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <svg id="meta-likes-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                         </svg>
                     </span>
                     <span id="meta-likes-val">—</span>
-                </div>
+                </button>
                 <div class="meta-item" id="meta-views" style="display:none;">
                     <span class="meta-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -546,14 +570,14 @@
 
             <!-- Action buttons -->
             <div class="actions-row">
-                <!-- Download .blend (shown only if blend_download_url exists) -->
+                <!-- Download .glb/.gltf (shown only if blend_download_url exists) -->
                 <a id="btn-download" class="btn-action primary" href="#" download>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
                         <line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
-                    Download .blend
+                    Download .glb
                 </a>
                 <!-- View on Sketchfab (shown only when sketchfab_uid exists) -->
                 <a id="sketchfab-link" class="btn-action" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">
@@ -598,7 +622,7 @@
     <!-- Main module -->
     <script type="module">
         import { db } from "/js/firebase-config.js";
-        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { doc, getDoc, setDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const urlParams    = new URLSearchParams(window.location.search);
         const projectId    = urlParams.get('id');
@@ -664,7 +688,60 @@
             descToggle.setAttribute('aria-expanded', String(isExpanded));
         });
 
-        // ── Lightbox ─────────────────────────────────────────────────────────
+        // ── Likes (Firestore-backed, localStorage tracks user) ──────────────
+
+        function getLikeStorageKey(id) { return `liked_project_${id}`; }
+        function hasUserLiked(id) {
+            try { return localStorage.getItem(getLikeStorageKey(id)) === '1'; } catch { return false; }
+        }
+        function markUserLiked(id) {
+            try { localStorage.setItem(getLikeStorageKey(id), '1'); } catch {}
+        }
+        function unmarkUserLiked(id) {
+            try { localStorage.removeItem(getLikeStorageKey(id)); } catch {}
+        }
+
+        function setLikesUI(count, liked) {
+            const btn = document.getElementById('meta-likes');
+            const val = document.getElementById('meta-likes-val');
+            if (!btn || !val) return;
+            val.textContent = formatCount(count);
+            btn.style.display = 'inline-flex';
+            btn.classList.toggle('liked', !!liked);
+        }
+
+        async function toggleLike() {
+            const btn = document.getElementById('meta-likes');
+            if (!btn || btn.dataset.busy === '1') return;
+            btn.dataset.busy = '1';
+
+            const liked   = hasUserLiked(projectId);
+            const valEl   = document.getElementById('meta-likes-val');
+            const current = parseInt(valEl?.textContent?.replace(/[^\d]/g, '') || '0', 10) || 0;
+            // Optimistic UI update
+            const nextLiked = !liked;
+            const nextCount = Math.max(0, current + (nextLiked ? 1 : -1));
+            setLikesUI(nextCount, nextLiked);
+            if (nextLiked) {
+                btn.classList.add('just-liked');
+                setTimeout(() => btn.classList.remove('just-liked'), 500);
+            }
+
+            try {
+                await setDoc(doc(db, 'projects', projectId), {
+                    like_count: increment(nextLiked ? 1 : -1)
+                }, { merge: true });
+                if (nextLiked) markUserLiked(projectId); else unmarkUserLiked(projectId);
+            } catch (err) {
+                // Roll back on failure
+                console.error('Like failed:', err);
+                setLikesUI(current, liked);
+            } finally {
+                btn.dataset.busy = '0';
+            }
+        }
+
+        document.getElementById('meta-likes')?.addEventListener('click', toggleLike);
 
         window.openLightbox = function(imgUrl, label) {
             document.getElementById('lightbox-img').src = imgUrl;
@@ -699,37 +776,24 @@
             viewsDivider.style.display = '';
         }
 
-        // ── Sketchfab public API ──────────────────────────────────────────────
+        // ── Sketchfab public API (date only) ─────────────────────────────────
 
-        async function fetchSketchfabStats(uid) {
+        async function fetchSketchfabDate(uid) {
             try {
                 const res = await fetch(`https://api.sketchfab.com/v3/models/${uid}`);
                 if (!res.ok) return;
                 const json = await res.json();
 
-                const likeCount  = json.likeCount  ?? json.likes;
-                const viewCount  = json.viewCount  ?? json.viewerCount;
-                const published  = json.publishedAt;
-
-                if (likeCount != null) {
-                    const el = document.getElementById('meta-likes');
-                    document.getElementById('meta-likes-val').textContent = formatCount(likeCount);
-                    el.style.display = 'flex';
-                }
-                if (viewCount != null) {
-                    const el = document.getElementById('meta-views');
-                    document.getElementById('meta-views-val').textContent = formatCount(viewCount);
-                    el.style.display = 'flex';
-                }
+                const published = json.publishedAt;
                 if (published) {
                     const formatted = formatDate(published);
                     if (formatted) {
                         const el = document.getElementById('meta-date');
                         document.getElementById('meta-date-val').textContent = formatted;
                         el.style.display = 'flex';
+                        showMeta();
                     }
                 }
-                showMeta();
             } catch (err) {
                 console.warn('Sketchfab API fetch failed:', err);
             }
@@ -771,8 +835,8 @@
 
             container.appendChild(iframe);
 
-            // Fetch public stats in parallel
-            fetchSketchfabStats(uid);
+            // Fetch Sketchfab date only (view count now tracked in Firestore)
+            fetchSketchfabDate(uid);
         }
 
         // ── Main init ─────────────────────────────────────────────────────────
@@ -804,6 +868,43 @@
                     setupDescriptionToggle();
                 }
 
+                // Likes from Firestore (always show button, even if zero)
+                const likeCount = typeof data.like_count === 'number' ? data.like_count : 0;
+                setLikesUI(likeCount, hasUserLiked(projectId));
+                showMeta();
+
+                // View count from Firestore (works for all project types)
+                // Show current count immediately, then ask server if this view should be counted
+                const currentViews = typeof data.view_count === 'number' ? data.view_count : 0;
+                const viewsEl = document.getElementById('meta-views');
+                document.getElementById('meta-views-val').textContent = formatCount(currentViews);
+                viewsEl.style.display = 'flex';
+                showMeta();
+
+                // Ask server to validate this view (IP-based cooldown, 24h per project)
+                // Server returns { counted: true } only if this IP hasn't viewed in 24h
+                fetch(`/api/view/${projectId}`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(result => {
+                        if (!result.counted) return; // Already counted within 24h, skip
+                        // Increment in Firestore and update UI optimistically
+                        document.getElementById('meta-views-val').textContent = formatCount(currentViews + 1);
+                        setDoc(doc(db, 'projects', projectId), {
+                            view_count: increment(1)
+                        }, { merge: true }).catch(err => console.warn('View count increment failed:', err));
+                    })
+                    .catch(() => {
+                        // Server unreachable (e.g. static hosting) — fall back to sessionStorage throttle
+                        const sessionKey = `viewed_${projectId}`;
+                        if (!sessionStorage.getItem(sessionKey)) {
+                            sessionStorage.setItem(sessionKey, '1');
+                            document.getElementById('meta-views-val').textContent = formatCount(currentViews + 1);
+                            setDoc(doc(db, 'projects', projectId), {
+                                view_count: increment(1)
+                            }, { merge: true }).catch(err => console.warn('View count increment failed:', err));
+                        }
+                    });
+
                 // Created date from Firestore (if no Sketchfab uid, or as fallback)
                 if (data.created_at && !data.sketchfab_uid) {
                     const formatted = formatDate(data.created_at);
@@ -825,7 +926,7 @@
                     tagsDivider.style.display = '';
                 }
 
-                // Download .blend button
+                // Download .glb/.gltf button
                 if (data.blend_download_url) {
                     const btn = document.getElementById('btn-download');
                     btn.href = data.blend_download_url;
