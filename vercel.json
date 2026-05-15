@@ -37,6 +37,10 @@
     {
       "source": "/model/:id",
       "destination": "/model.html?id=:id"
+    },
+    {
+      "source": "/software",
+      "destination": "/software.html"
     }
   ]
 }

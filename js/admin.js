@@ -215,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initModelViewSlots();
     initStandardIconUpload();
     initBlendUpload();
+    initSoftwarePreviewSlots();
 });
 
 // 2b. STATS LISTENER
@@ -323,17 +324,30 @@ function toggleEditStat(id, data) {
 // --- TYPE SWITCH: Shows/hides asset panels based on project category ---
 function handleTypeSwitch() {
     const is3D = this.value === '3D Model';
+    const isSoftware = this.value === 'Software';
     const stdPanel = document.getElementById('standard-asset-panel');
     const mdlPanel = document.getElementById('model3d-asset-panel');
+    const swPanel = document.getElementById('software-asset-panel');
     const iconInput = document.getElementById('p-icon');
     const linkInput = document.getElementById('p-link');
 
-    if (stdPanel) stdPanel.style.display = is3D ? 'none' : 'block';
-    if (mdlPanel) mdlPanel.style.display = is3D ? 'block' : 'none';
+    // Hide all panels first
+    if (stdPanel) stdPanel.style.display = 'none';
+    if (mdlPanel) mdlPanel.style.display = 'none';
+    if (swPanel) swPanel.style.display = 'none';
+
+    // Show the relevant panel
+    if (is3D) {
+        if (mdlPanel) mdlPanel.style.display = 'block';
+    } else if (isSoftware) {
+        if (swPanel) swPanel.style.display = 'block';
+    } else {
+        if (stdPanel) stdPanel.style.display = 'block';
+    }
 
     // Toggle required attrs to prevent HTML5 validation from blocking hidden fields.
     if (iconInput) iconInput.required = false;
-    if (linkInput) linkInput.required = !is3D;
+    if (linkInput) linkInput.required = (!is3D && !isSoftware);
 }
 
 function setupTypeSwitch() {
@@ -684,61 +698,23 @@ function initBlendUpload() {
         const updateBar = createProgressBar(statusEl);
 
         try {
-            // Two-step upload: get the upload URL from server, then upload directly to GitHub.
-            // This avoids Vercel's 4.5MB body size limit for serverless functions.
-            const urlResp = await fetch('/api/upload-github-url', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    githubToken: GITHUB_TOKEN,
-                    githubOwner: GITHUB_OWNER,
-                    githubRepo: GITHUB_REPO,
-                    githubTag: GITHUB_RELEASE_TAG,
-                    fileName: file.name
-                })
+            // Upload via server proxy to avoid CORS — browser cannot POST directly to uploads.github.com.
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('githubToken', GITHUB_TOKEN);
+            formData.append('githubOwner', GITHUB_OWNER);
+            formData.append('githubRepo', GITHUB_REPO);
+            formData.append('githubTag', GITHUB_RELEASE_TAG);
+
+            const data = await uploadWithProgress('/api/upload-github', formData, (pct) => {
+                updateBar(pct);
+                uploadBtn.textContent = `UPLOADING ${pct}%`;
             });
 
-            const urlData = await urlResp.json();
-            if (!urlResp.ok) throw new Error(urlData.error || `HTTP ${urlResp.status}`);
-
-            // Upload directly to GitHub using XHR for progress tracking
-            const data = await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', urlData.uploadUrl);
-                xhr.setRequestHeader('Authorization', `Bearer ${urlData.token}`);
-                xhr.setRequestHeader('Accept', 'application/vnd.github+json');
-                xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-                xhr.setRequestHeader('X-GitHub-Api-Version', '2022-11-28');
-
-                xhr.upload.addEventListener('progress', (e) => {
-                    if (e.lengthComputable) {
-                        const pct = Math.round((e.loaded / e.total) * 100);
-                        updateBar(pct);
-                        uploadBtn.textContent = `UPLOADING ${pct}%`;
-                    }
-                });
-
-                xhr.addEventListener('load', () => {
-                    try {
-                        const resp = JSON.parse(xhr.responseText);
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            resolve(resp);
-                        } else {
-                            reject(new Error(resp.message || `GitHub upload HTTP ${xhr.status}`));
-                        }
-                    } catch (e) {
-                        reject(new Error('Invalid GitHub response'));
-                    }
-                });
-
-                xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
-                xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
-                xhr.send(file);
-            });
-
-            urlInput.value = urlData.downloadUrl;
-            const sizeMB = (data.size / (1024 * 1024)).toFixed(2);
-            statusEl.innerHTML = `<span style="color: #00ff88;">✓ UPLOADED (${sizeMB} MB) — ${data.name}</span>`;
+            const downloadUrl = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/${GITHUB_RELEASE_TAG}/${encodeURIComponent(file.name)}`;
+            urlInput.value = data.download_url || downloadUrl;
+            const sizeMB = ((data.size || file.size) / (1024 * 1024)).toFixed(2);
+            statusEl.innerHTML = `<span style="color: #00ff88;">✓ UPLOADED (${sizeMB} MB) — ${data.name || file.name}</span>`;
         } catch (err) {
             console.error('GLB upload error:', err);
             statusEl.innerHTML = `<span style="color: #ff4444;">✗ FAILED: ${err.message}</span>`;
@@ -747,6 +723,195 @@ function initBlendUpload() {
             uploadBtn.textContent = 'UPLOAD .GLB';
         }
     });
+}
+
+// --- SOFTWARE PREVIEW IMAGES ---
+const MAX_PREVIEW_IMAGES = 15;
+let softwarePreviewCount = 0;
+const SW_PREVIEW_STORAGE_KEY = 'admin_sw_previews';
+
+function saveSoftwarePreviewsToStorage() {
+    const container = document.getElementById('software-preview-slots');
+    if (!container) return;
+    const slots = container.querySelectorAll('.sw-preview-slot');
+    const data = [];
+    slots.forEach(slot => {
+        const img = slot.querySelector('.sw-preview-img img');
+        const urlInput = slot.querySelector('.sw-url-input');
+        data.push({
+            dataUrl: img ? img.src : null,
+            uploadedUrl: urlInput?.value || ''
+        });
+    });
+    try {
+        localStorage.setItem(SW_PREVIEW_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+        console.warn('Could not save previews to localStorage (quota exceeded?):', e);
+    }
+}
+
+function loadSoftwarePreviewsFromStorage() {
+    try {
+        const raw = localStorage.getItem(SW_PREVIEW_STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+function initSoftwarePreviewSlots() {
+    const addBtn = document.getElementById('btn-add-preview');
+    if (!addBtn) return;
+
+    addBtn.addEventListener('click', () => {
+        if (softwarePreviewCount >= MAX_PREVIEW_IMAGES) {
+            alert(`Maximum ${MAX_PREVIEW_IMAGES} preview images allowed.`);
+            return;
+        }
+        addSoftwarePreviewSlot();
+        saveSoftwarePreviewsToStorage();
+    });
+
+    // Restore from localStorage or add first empty slot
+    const saved = loadSoftwarePreviewsFromStorage();
+    if (saved && saved.length > 0) {
+        saved.forEach(item => {
+            addSoftwarePreviewSlot(item.dataUrl, item.uploadedUrl);
+        });
+    } else {
+        addSoftwarePreviewSlot();
+    }
+}
+
+function addSoftwarePreviewSlot(savedDataUrl, savedUploadedUrl) {
+    const container = document.getElementById('software-preview-slots');
+    if (!container) return;
+
+    softwarePreviewCount++;
+    const index = softwarePreviewCount;
+
+    const slot = document.createElement('div');
+    slot.className = 'sw-preview-slot';
+    slot.dataset.index = index;
+    slot.innerHTML = `
+        <button type="button" class="btn-remove-preview" title="Remove">✕</button>
+        <div class="sw-preview-img" id="sw-preview-img-${index}">
+            <span class="slot-empty">${index}</span>
+        </div>
+        <input type="file" accept="image/*" class="sw-file-input view-file-input" data-index="${index}" style="font-size: 0.6rem;">
+        <input type="hidden" class="sw-url-input" data-index="${index}">
+    `;
+
+    // Restore saved preview if available
+    if (savedDataUrl) {
+        const previewEl = slot.querySelector('.sw-preview-img');
+        previewEl.innerHTML = `<img src="${savedDataUrl}" alt="preview ${index}">`;
+    }
+    if (savedUploadedUrl) {
+        slot.querySelector('.sw-url-input').value = savedUploadedUrl;
+    }
+
+    // File change handler — show local preview and save to localStorage as base64
+    const fileInput = slot.querySelector('.sw-file-input');
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        const previewEl = slot.querySelector('.sw-preview-img');
+
+        // Read as base64 for localStorage persistence
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewEl.innerHTML = `<img src="${e.target.result}" alt="preview ${index}">`;
+            saveSoftwarePreviewsToStorage();
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Remove button handler
+    const removeBtn = slot.querySelector('.btn-remove-preview');
+    removeBtn.addEventListener('click', () => {
+        slot.remove();
+        softwarePreviewCount--;
+        updatePreviewSlotNumbers();
+        saveSoftwarePreviewsToStorage();
+    });
+
+    container.appendChild(slot);
+}
+
+function updatePreviewSlotNumbers() {
+    const container = document.getElementById('software-preview-slots');
+    if (!container) return;
+    const slots = container.querySelectorAll('.sw-preview-slot');
+    slots.forEach((slot, i) => {
+        slot.dataset.index = i + 1;
+        const emptyLabel = slot.querySelector('.slot-empty');
+        if (emptyLabel) emptyLabel.textContent = i + 1;
+    });
+}
+
+/**
+ * Uploads all software preview images that have files selected.
+ * For slots without a file (restored from localStorage), uses the stored dataUrl
+ * to create a Blob and upload that instead.
+ * Returns an array of Cloudinary URLs.
+ */
+async function uploadSoftwarePreviewImages(submitBtn) {
+    const container = document.getElementById('software-preview-slots');
+    if (!container) return [];
+
+    const slots = container.querySelectorAll('.sw-preview-slot');
+    const urls = [];
+
+    for (const slot of slots) {
+        const fileInput = slot.querySelector('.sw-file-input');
+        const urlInput = slot.querySelector('.sw-url-input');
+        const previewImg = slot.querySelector('.sw-preview-img img');
+        const file = fileInput?.files[0];
+
+        if (urlInput.value.trim()) {
+            // Already uploaded
+            urls.push(urlInput.value.trim());
+        } else if (file) {
+            // Has a file selected — upload it
+            const idx = slot.dataset.index;
+            submitBtn.innerText = `UPLOADING PREVIEW ${idx}/${slots.length}...`;
+            try {
+                const cloudUrl = await uploadToCloudinary(file);
+                urlInput.value = cloudUrl;
+                urls.push(cloudUrl);
+            } catch (err) {
+                throw new Error(`Failed to upload preview image ${idx}: ${err.message}`);
+            }
+        } else if (previewImg && previewImg.src.startsWith('data:')) {
+            // Restored from localStorage — convert base64 to Blob and upload
+            const idx = slot.dataset.index;
+            submitBtn.innerText = `UPLOADING PREVIEW ${idx}/${slots.length}...`;
+            try {
+                const blob = await fetch(previewImg.src).then(r => r.blob());
+                const fileName = `preview_${idx}.${blob.type.split('/')[1] || 'png'}`;
+                const fileFromBlob = new File([blob], fileName, { type: blob.type });
+                const cloudUrl = await uploadToCloudinary(fileFromBlob);
+                urlInput.value = cloudUrl;
+                urls.push(cloudUrl);
+            } catch (err) {
+                throw new Error(`Failed to upload preview image ${idx}: ${err.message}`);
+            }
+        }
+    }
+
+    return urls;
+}
+
+function resetSoftwarePreviewSlots() {
+    const container = document.getElementById('software-preview-slots');
+    softwarePreviewCount = 0;
+    if (container) {
+        container.innerHTML = '';
+        addSoftwarePreviewSlot();
+    }
+    localStorage.removeItem(SW_PREVIEW_STORAGE_KEY);
 }
 
 // --- COVER IMAGE SELECTION ---
@@ -2542,7 +2707,7 @@ if(addProjectForm) {
             const modelFile = document.getElementById("p-model-file-input")?.files[0];
 
             // Upload standard icon if a file is selected and no URL is already set
-            if (iconFile && type !== "3D Model" && !iconUrl) {
+            if (iconFile && type !== "3D Model" && type !== "Software" && !iconUrl) {
                 submitBtn.innerText = "UPLOADING ICON...";
                 iconUrl = await uploadToCloudinary(iconFile);
             }
@@ -2611,11 +2776,37 @@ if(addProjectForm) {
                 type: type,
                 description: desc,
                 stack: selectedStack,
-                link: document.getElementById("p-link").value || "",
+                link: (type === 'Software') ? (document.getElementById("p-sw-link")?.value || "") : (document.getElementById("p-link").value || ""),
                 icon_url: iconUrl || "",
                 sketchfab_uid: sketchfabUid,
                 created_at: parseDateInput(document.getElementById("p-created-at")?.value) || serverTimestamp()
             };
+
+            // For Software: upload preview images and set icon/link
+            if (type === "Software") {
+                // Upload icon file if selected
+                const swIconFile = document.getElementById('p-sw-icon-file')?.files[0];
+                const swIconUrl = document.getElementById('p-sw-icon')?.value?.trim();
+                if (swIconFile && !swIconUrl) {
+                    submitBtn.innerText = "UPLOADING ICON...";
+                    const uploadedIconUrl = await uploadToCloudinary(swIconFile);
+                    document.getElementById('p-sw-icon').value = uploadedIconUrl;
+                }
+
+                const previewUrls = await uploadSoftwarePreviewImages(submitBtn);
+                if (previewUrls.length > 0) {
+                    projectData.preview_images = previewUrls;
+                }
+                // Use icon override, or first preview as icon
+                const swIconOverride = document.getElementById('p-sw-icon')?.value?.trim();
+                projectData.icon_url = swIconOverride || (previewUrls.length > 0 ? previewUrls[0] : "") || "";
+                
+                const swLink = document.getElementById('p-sw-link')?.value?.trim();
+                if (swLink) projectData.link = swLink;
+                const swGithub = document.getElementById('p-sw-github')?.value?.trim();
+                if (swGithub) projectData.github_url = swGithub;
+                submitBtn.innerText = "PROCESSING...";
+            }
 
             // For 3D Model, collect view angles
             if (type === "3D Model") {
@@ -2677,6 +2868,8 @@ if(addProjectForm) {
             // Clear blend upload status
             const blendStatus = document.getElementById('blend-upload-status');
             if (blendStatus) blendStatus.innerHTML = '';
+            // Reset software preview slots
+            resetSoftwarePreviewSlots();
         } catch (e) { alert("ERROR: " + e.message); console.error(e); } 
         
         loader.style.display = "none";

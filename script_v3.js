@@ -263,7 +263,7 @@ async function loadProjects(filterType = "ALL") {
                     <!-- ACTION (FAR RIGHT) -->
                     <div class="project-action">
                         ${(() => {
-                            let targetLink = data.link || "#";
+                            let targetLink = data.link || "";
                             let targetTarget = "_blank";
                             let buttonText = "Open";
                             
@@ -276,9 +276,12 @@ async function loadProjects(filterType = "ALL") {
                             } else if (data.type === "Web") {
                                 buttonText = "Open Site";
                             } else if (data.type === "Software") {
-                                buttonText = "Download";
+                                targetLink = `software?id=${data.id}`;
+                                targetTarget = "_self";
+                                buttonText = "View";
                             }
                             
+                            if (!targetLink) return '';
                             return `<a href="${targetLink}" target="${targetTarget}" class="btn-access">${buttonText}</a>`;
                         })()}
                     </div>

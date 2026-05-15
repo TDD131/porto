@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Software | Portfolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 0; background: var(--bg-color); color: var(--text-primary); font-family: var(--font-display); overflow-x: hidden; }
+
+        /* ── Top nav bar ── */
+        .sw-nav { position: sticky; top: 0; z-index: 200; background: color-mix(in srgb, var(--bg-color) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border-dim); padding: 14px 0; }
+        .sw-nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; gap: 12px; }
+        .back-btn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid var(--border-dim); color: var(--text-dim); padding: 7px 14px; text-decoration: none; font-size: 0.72rem; letter-spacing: 0.08rem; transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s; text-transform: uppercase; border-radius: 999px; font-family: var(--font-display); }
+        .back-btn:hover { background: color-mix(in srgb, var(--text-primary) 8%, transparent); border-color: var(--border-strong); color: var(--text-primary); transform: translateY(-1px); }
+        .sw-nav-breadcrumb { font-family: var(--font-code); font-size: 0.65rem; color: var(--text-dim); letter-spacing: 0.08rem; }
+        .sw-nav-breadcrumb span { color: var(--text-primary); }
+
+        /* ── Page wrapper ── */
+        .sw-page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+        /* ── Hero gallery ── */
+        .gallery-hero { width: 100%; aspect-ratio: 16/9; background: #0a0a0a; border-radius: 16px; overflow: hidden; position: relative; cursor: zoom-in; border: 1px solid var(--border-dim); }
+        .gallery-hero img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.25s ease; }
+        .gallery-hero.no-img { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.15); font-family: var(--font-code); font-size: 0.75rem; letter-spacing: 2px; cursor: default; }
+        .gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; transition: background 0.2s, color 0.2s; z-index: 10; }
+        .gallery-nav:hover { background: rgba(0,0,0,0.85); color: #fff; }
+        .gallery-nav.prev { left: 14px; }
+        .gallery-nav.next { right: 14px; }
+        .gallery-counter { position: absolute; bottom: 12px; right: 16px; font-family: var(--font-code); font-size: 0.65rem; color: rgba(255,255,255,0.45); letter-spacing: 1px; background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 999px; pointer-events: none; }
+
+        /* ── Thumbnail strip ── */
+        .gallery-strip { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: var(--border-dim) transparent; }
+        .gallery-strip::-webkit-scrollbar { height: 3px; }
+        .gallery-strip::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 2px; }
+        .gallery-thumb { width: 80px; height: 52px; object-fit: cover; border-radius: 8px; border: 2px solid transparent; opacity: 0.5; cursor: pointer; flex-shrink: 0; transition: border-color 0.2s, opacity 0.2s, transform 0.15s; }
+        .gallery-thumb:hover { opacity: 0.85; transform: scale(1.04); }
+        .gallery-thumb.active { border-color: var(--text-primary); opacity: 1; }
+
+        /* ── Content grid: main + sidebar ── */
+        .sw-content { display: grid; grid-template-columns: 1fr 300px; gap: 40px; margin-top: 36px; align-items: start; }
+        @media (max-width: 860px) { .sw-content { grid-template-columns: 1fr; } .sw-sidebar { order: -1; } }
+
+        /* ── Main content ── */
+        .sw-main {}
+        .sw-eyebrow { font-family: var(--font-code); font-size: 0.65rem; letter-spacing: 0.15rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 10px; }
+        .sw-title { font-family: "Playfair Display", ui-serif, Georgia, serif; font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 700; line-height: 1.1; color: var(--text-primary); margin: 0 0 20px; letter-spacing: -0.5px; }
+        .sw-meta-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border-dim); }
+        .sw-meta-item { display: flex; align-items: center; gap: 6px; font-family: var(--font-code); font-size: 0.72rem; color: var(--text-dim); }
+        .sw-meta-item svg { width: 13px; height: 13px; flex-shrink: 0; }
+        button.sw-meta-item { background: transparent; border: none; padding: 0; cursor: pointer; font-family: inherit; color: var(--text-dim); transition: color 0.2s; }
+        button.sw-meta-item:hover { color: var(--text-primary); }
+        button.sw-meta-item.liked { color: #ff4d6d; }
+        button.sw-meta-item.liked svg { fill: #ff4d6d; stroke: #ff4d6d; }
+        @keyframes heartPop { 0%{transform:scale(1)} 40%{transform:scale(1.4)} 70%{transform:scale(0.9)} 100%{transform:scale(1)} }
+        button.sw-meta-item.just-liked svg { animation: heartPop 0.45s cubic-bezier(0.34,1.56,0.64,1); }
+
+        .sw-section-label { font-family: var(--font-code); font-size: 0.65rem; letter-spacing: 0.12rem; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+        .sw-desc { color: var(--text-dim); font-size: 0.92rem; line-height: 1.75; margin: 0 0 32px; white-space: pre-wrap; }
+        .sw-desc.collapsible { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+        .sw-desc.expanded { display: block; }
+        .desc-toggle { display: none; margin-bottom: 32px; background: transparent; border: 1px solid var(--border-dim); color: var(--text-dim); border-radius: 999px; padding: 6px 16px; font-family: var(--font-code); font-size: 0.65rem; letter-spacing: 1px; cursor: pointer; transition: color 0.2s, background 0.2s, border-color 0.2s; }
+        .desc-toggle.visible { display: inline-flex; }
+        .desc-toggle:hover { background: color-mix(in srgb, var(--text-primary) 8%, transparent); border-color: var(--border-strong); color: var(--text-primary); }
+
+        /* Tech stack */
+        .tags-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+        .tech-tag { border: 1px solid var(--border-dim); padding: 5px 14px; border-radius: 999px; font-family: var(--font-code); font-size: 0.7rem; color: var(--text-dim); letter-spacing: 0.5px; transition: color 0.2s, border-color 0.2s, background 0.2s; }
+        .tech-tag:hover { color: var(--text-primary); border-color: var(--border-strong); background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+
+        /* ── Sidebar ── */
+        .sw-sidebar { position: sticky; top: 80px; }
+        .sw-sidebar-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-dim); border-radius: 16px; padding: 24px; }
+        .sw-sidebar-icon { width: 72px; height: 72px; border-radius: 14px; object-fit: cover; border: 1px solid var(--border-dim); margin-bottom: 16px; display: block; }
+        .sw-sidebar-title { font-family: "Playfair Display", ui-serif, Georgia, serif; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin: 0 0 4px; }
+        .sw-sidebar-type { font-family: var(--font-code); font-size: 0.65rem; color: var(--text-dim); letter-spacing: 0.1rem; text-transform: uppercase; margin-bottom: 20px; }
+        .sw-sidebar-divider { height: 1px; background: var(--border-dim); margin: 16px 0; }
+        .sw-sidebar-stat { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-code); font-size: 0.72rem; color: var(--text-dim); margin-bottom: 10px; }
+        .sw-sidebar-stat span:last-child { color: var(--text-primary); }
+        .btn-action { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 18px; border-radius: 999px; font-family: var(--font-display); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.3px; text-decoration: none; cursor: pointer; transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s; border: 1px solid var(--border-dim); background: transparent; color: var(--text-dim); margin-bottom: 10px; }
+        .btn-action:last-child { margin-bottom: 0; }
+        .btn-action:hover { background: color-mix(in srgb, var(--text-primary) 8%, transparent); border-color: var(--border-strong); color: var(--text-primary); transform: translateY(-1px); }
+        .btn-action.primary { background: var(--text-primary); color: var(--bg-color); border-color: transparent; }
+        .btn-action.primary:hover { background: color-mix(in srgb, var(--text-primary) 88%, transparent); }
+        .btn-action svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+        /* ── Loading overlay ── */
+        #loading-overlay { position: fixed; inset: 0; background: var(--bg-color); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; transition: opacity 0.5s ease; }
+        .loader-bar { width: 200px; height: 2px; background: var(--border-dim); margin-top: 20px; position: relative; overflow: hidden; }
+        .loader-progress { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: var(--text-primary); transition: width 0.3s ease; }
+        .status-text { font-size: 0.7rem; letter-spacing: 2px; color: var(--text-dim); margin-top: 10px; font-family: var(--font-code); }
+
+        /* ── Lightbox ── */
+        .lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.96); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; animation: fadeIn 0.2s ease; }
+        #lightbox-img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 8px; }
+        .lightbox-close { position: absolute; top: 20px; right: 28px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 18px; cursor: pointer; font-family: var(--font-code); font-size: 0.72rem; border-radius: 999px; letter-spacing: 1px; transition: background 0.18s, transform 0.18s; }
+        .lightbox-close:hover { background: rgba(255,255,255,0.14); transform: translateY(-1px); }
+        .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; transition: background 0.2s; }
+        .lightbox-nav:hover { background: rgba(255,255,255,0.15); }
+        .lightbox-nav.prev { left: 24px; }
+        .lightbox-nav.next { right: 24px; }
+        .lightbox-counter { font-family: var(--font-code); color: rgba(255,255,255,0.35); font-size: 0.72rem; letter-spacing: 2px; }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+        @media (max-width: 600px) {
+            .sw-page { padding: 24px 16px 60px; }
+            .gallery-thumb { width: 60px; height: 40px; }
+            .sw-title { font-size: 1.6rem; }
+            .lightbox-nav.prev { left: 8px; }
+            .lightbox-nav.next { right: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <script>
+        document.body.classList.add('page-enter');
+        requestAnimationFrame(function(){ document.body.classList.remove('page-enter'); });
+        (function(){ try{ var t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); }catch(e){} })();
+    </script>
+
+    <div id="loading-overlay">
+        <div class="loader-bar"><div id="loader-progress" class="loader-progress"></div></div>
+        <div class="status-text" id="loader-status">SYNCING_ASSETS...</div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="sw-nav">
+        <div class="sw-nav-inner">
+            <a href="javascript:history.back()" class="back-btn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Back
+            </a>
+            <span class="sw-nav-breadcrumb">Portfolio / <span id="nav-title">Software</span></span>
+        </div>
+    </nav>
+
+    <!-- Page -->
+    <div class="sw-page">
+
+        <!-- Gallery hero -->
+        <div class="gallery-hero no-img" id="gallery-hero">NO_IMAGES</div>
+        <div class="gallery-strip" id="gallery-strip" style="display:none;"></div>
+
+        <!-- Content grid -->
+        <div class="sw-content">
+
+            <!-- Main -->
+            <div class="sw-main">
+                <div class="sw-eyebrow" id="sw-eyebrow">Software</div>
+                <h1 class="sw-title" id="sw-title">Loading...</h1>
+
+                <div class="sw-meta-row" id="sw-meta-row">
+                    <div class="sw-meta-item" id="meta-date" style="display:none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <span id="meta-date-val">—</span>
+                    </div>
+                    <button class="sw-meta-item" id="meta-likes" style="display:none;" aria-label="Like">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        <span id="meta-likes-val">—</span>
+                    </button>
+                    <div class="sw-meta-item" id="meta-views" style="display:none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span id="meta-views-val">—</span>
+                    </div>
+                </div>
+
+                <div class="sw-section-label">About</div>
+                <p id="sw-desc" class="sw-desc">Loading...</p>
+                <button id="desc-toggle" class="desc-toggle" type="button" aria-expanded="false">MORE</button>
+
+                <div class="sw-section-label" id="stack-label" style="display:none;">Tech Stack</div>
+                <div class="tags-row" id="tags-row" style="display:none;"></div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="sw-sidebar">
+                <div class="sw-sidebar-card">
+                    <img id="sidebar-icon" class="sw-sidebar-icon" src="" alt="Icon" style="display:none;">
+                    <div class="sw-sidebar-title" id="sidebar-title">—</div>
+                    <div class="sw-sidebar-type" id="sidebar-type">Software</div>
+
+                    <div id="sidebar-actions"></div>
+
+                    <div class="sw-sidebar-divider"></div>
+
+                    <div class="sw-sidebar-stat" id="sidebar-stat-date" style="display:none;">
+                        <span>Released</span>
+                        <span id="sidebar-date-val">—</span>
+                    </div>
+                    <div class="sw-sidebar-stat" id="sidebar-stat-views" style="display:none;">
+                        <span>Views</span>
+                        <span id="sidebar-views-val">—</span>
+                    </div>
+                    <div class="sw-sidebar-stat" id="sidebar-stat-likes" style="display:none;">
+                        <span>Likes</span>
+                        <span id="sidebar-likes-val">—</span>
+                    </div>
+                </div>
+            </aside>
+
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox-overlay" id="lightbox" style="display:none;" onclick="closeLightbox(event)">
+        <button class="lightbox-close" onclick="event.stopPropagation();closeLightbox()">X CLOSE</button>
+        <button class="lightbox-nav prev" onclick="event.stopPropagation();lightboxNav(-1)">&#8249;</button>
+        <img id="lightbox-img" src="" alt="Screenshot">
+        <button class="lightbox-nav next" onclick="event.stopPropagation();lightboxNav(1)">&#8250;</button>
+        <div id="lightbox-counter" class="lightbox-counter"></div>
+    </div>
+    <!-- Page transition -->
+    <script>
+        (function(){
+            var rm=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if(rm) return;
+            document.querySelectorAll('a[href]').forEach(function(link){
+                link.addEventListener('click',function(e){
+                    var url; try{url=new URL(link.href,window.location.href);}catch(err){return;}
+                    if(url.origin!==window.location.origin) return;
+                    if(link.target&&link.target!=='_self') return;
+                    e.preventDefault();
+                    document.body.classList.add('page-leave');
+                    setTimeout(function(){window.location.href=url.href;},260);
+                });
+            });
+        })();
+    </script>
+
+    <!-- Main module -->
+    <script type="module">
+        import { db } from "/js/firebase-config.js";
+        import { doc, getDoc, setDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const urlParams      = new URLSearchParams(window.location.search);
+        const projectId      = urlParams.get('id');
+        const loaderProgress = document.getElementById('loader-progress');
+        const loaderStatus   = document.getElementById('loader-status');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        let galleryImages = [];
+        let currentIndex  = 0;
+
+        // ── Helpers ──────────────────────────────────────────────────────────
+        function formatCount(n) {
+            if (n == null) return '—';
+            if (n >= 1000) return (n/1000).toFixed(1).replace(/\.0$/,'')+'k';
+            return String(n);
+        }
+        function formatDate(value) {
+            if (!value) return null;
+            let d;
+            if (value && typeof value.toDate === 'function') { d = value.toDate(); }
+            else if (typeof value === 'string' || typeof value === 'number') { d = new Date(value); }
+            else { return null; }
+            if (isNaN(d.getTime())) return null;
+            return d.toLocaleDateString('id-ID', { year:'numeric', month:'short', day:'numeric' });
+        }
+
+        // ── Description toggle ────────────────────────────────────────────────
+        function setupDescriptionToggle() {
+            const desc = document.getElementById('sw-desc');
+            const toggle = document.getElementById('desc-toggle');
+            if (!desc || !toggle) return;
+            desc.classList.remove('collapsible','expanded');
+            toggle.classList.remove('visible');
+            toggle.textContent = 'MORE';
+            toggle.setAttribute('aria-expanded','false');
+            requestAnimationFrame(() => {
+                if (desc.scrollHeight > desc.clientHeight + 4 || desc.textContent.length > 300) {
+                    desc.classList.add('collapsible');
+                    toggle.classList.add('visible');
+                }
+            });
+        }
+        document.getElementById('desc-toggle')?.addEventListener('click', () => {
+            const desc = document.getElementById('sw-desc');
+            const toggle = document.getElementById('desc-toggle');
+            if (!desc) return;
+            const expanded = desc.classList.toggle('expanded');
+            desc.classList.toggle('collapsible', !expanded);
+            toggle.textContent = expanded ? 'LESS' : 'MORE';
+            toggle.setAttribute('aria-expanded', String(expanded));
+        });
+
+        // ── Likes ─────────────────────────────────────────────────────────────
+        function getLikeKey(id) { return `liked_project_${id}`; }
+        function hasUserLiked(id) { try { return localStorage.getItem(getLikeKey(id)) === '1'; } catch { return false; } }
+        function markUserLiked(id) { try { localStorage.setItem(getLikeKey(id),'1'); } catch {} }
+        function unmarkUserLiked(id) { try { localStorage.removeItem(getLikeKey(id)); } catch {} }
+
+        function setLikesUI(count, liked) {
+            const btn = document.getElementById('meta-likes');
+            const val = document.getElementById('meta-likes-val');
+            const sideVal = document.getElementById('sidebar-likes-val');
+            const sideStat = document.getElementById('sidebar-stat-likes');
+            if (btn && val) { val.textContent = formatCount(count); btn.style.display = 'inline-flex'; btn.classList.toggle('liked', !!liked); }
+            if (sideVal) sideVal.textContent = formatCount(count);
+            if (sideStat) sideStat.style.display = 'flex';
+        }
+
+        async function toggleLike() {
+            const btn = document.getElementById('meta-likes');
+            if (!btn || btn.dataset.busy === '1') return;
+            btn.dataset.busy = '1';
+            const liked = hasUserLiked(projectId);
+            const val = document.getElementById('meta-likes-val');
+            const current = parseInt(val?.textContent?.replace(/[^\d]/g,'') || '0', 10) || 0;
+            const nextLiked = !liked;
+            const nextCount = Math.max(0, current + (nextLiked ? 1 : -1));
+            setLikesUI(nextCount, nextLiked);
+            if (nextLiked) { btn.classList.add('just-liked'); setTimeout(() => btn.classList.remove('just-liked'), 500); }
+            try {
+                await setDoc(doc(db,'projects',projectId), { like_count: increment(nextLiked ? 1 : -1) }, { merge: true });
+                if (nextLiked) markUserLiked(projectId); else unmarkUserLiked(projectId);
+            } catch(err) { console.error('Like failed:',err); setLikesUI(current, liked); }
+            finally { btn.dataset.busy = '0'; }
+        }
+        document.getElementById('meta-likes')?.addEventListener('click', toggleLike);
+
+        // ── Gallery ───────────────────────────────────────────────────────────
+        function renderGallery(images) {
+            if (!images || images.length === 0) return;
+            galleryImages = images;
+            currentIndex = 0;
+
+            const heroEl  = document.getElementById('gallery-hero');
+            const stripEl = document.getElementById('gallery-strip');
+
+            heroEl.classList.remove('no-img');
+            heroEl.innerHTML = `
+                <img id="gallery-main-img" src="${images[0]}" alt="Screenshot 1" loading="eager">
+                <button class="gallery-nav prev" onclick="galleryNav(-1)" style="${images.length < 2 ? 'display:none' : ''}">&#8249;</button>
+                <button class="gallery-nav next" onclick="galleryNav(1)" style="${images.length < 2 ? 'display:none' : ''}">&#8250;</button>
+                <span class="gallery-counter" id="gallery-counter">${images.length > 1 ? '1 / '+images.length : ''}</span>
+            `;
+            heroEl.onclick = () => openLightbox(currentIndex);
+
+            if (images.length > 1) {
+                stripEl.innerHTML = images.map((url, i) => `
+                    <img src="${url}" class="gallery-thumb${i===0?' active':''}" alt="Screenshot ${i+1}" loading="lazy" onclick="setGalleryIndex(${i})">
+                `).join('');
+                stripEl.style.display = 'flex';
+            }
+        }
+
+        window.galleryNav = function(dir) {
+            if (!galleryImages.length) return;
+            setGalleryIndex((currentIndex + dir + galleryImages.length) % galleryImages.length);
+        };
+        window.setGalleryIndex = function(idx) {
+            if (idx < 0 || idx >= galleryImages.length) return;
+            currentIndex = idx;
+            const img = document.getElementById('gallery-main-img');
+            if (img) { img.style.opacity='0'; setTimeout(()=>{ img.src=galleryImages[idx]; img.style.opacity='1'; },150); }
+            const counter = document.getElementById('gallery-counter');
+            if (counter) counter.textContent = galleryImages.length > 1 ? `${idx+1} / ${galleryImages.length}` : '';
+            document.querySelectorAll('.gallery-thumb').forEach((t,i) => t.classList.toggle('active', i===idx));
+        };
+
+        // ── Lightbox ──────────────────────────────────────────────────────────
+        window.openLightbox = function(idx) {
+            currentIndex = idx;
+            document.getElementById('lightbox-img').src = galleryImages[idx];
+            document.getElementById('lightbox-counter').textContent = galleryImages.length > 1 ? `${idx+1} / ${galleryImages.length}` : '';
+            document.getElementById('lightbox').style.display = 'flex';
+        };
+        window.closeLightbox = function(e) {
+            if (e && e.target !== document.getElementById('lightbox') && e.type === 'click') return;
+            document.getElementById('lightbox').style.display = 'none';
+            document.getElementById('lightbox-img').src = '';
+        };
+        window.lightboxNav = function(dir) {
+            if (!galleryImages.length) return;
+            const next = (currentIndex + dir + galleryImages.length) % galleryImages.length;
+            window.openLightbox(next); window.setGalleryIndex(next);
+        };
+        document.addEventListener('keydown', e => {
+            const lb = document.getElementById('lightbox');
+            if (lb.style.display === 'none') return;
+            if (e.key === 'Escape') { lb.style.display = 'none'; }
+            if (e.key === 'ArrowLeft') window.lightboxNav(-1);
+            if (e.key === 'ArrowRight') window.lightboxNav(1);
+        });
+
+        // ── Main init ─────────────────────────────────────────────────────────
+        async function init() {
+            if (!projectId) { loaderStatus.innerText = 'ERROR: NO_ID_SPECIFIED'; return; }
+            try {
+                loaderProgress.style.width = '30%';
+                const docSnap = await getDoc(doc(db, 'projects', projectId));
+                if (!docSnap.exists()) { loaderStatus.innerText = 'ERROR: PROJECT_NOT_FOUND'; return; }
+                const data = docSnap.data();
+
+                // Title
+                const title = data.title || 'UNTITLED';
+                document.getElementById('sw-title').innerText = title;
+                document.getElementById('sidebar-title').innerText = title;
+                document.getElementById('nav-title').innerText = title;
+                document.title = title + ' | Portfolio';
+
+                // Eyebrow / type
+                document.getElementById('sw-eyebrow').innerText = data.type || 'Software';
+                document.getElementById('sidebar-type').innerText = data.type || 'Software';
+
+                // Icon in sidebar
+                if (data.icon_url) {
+                    const icon = document.getElementById('sidebar-icon');
+                    icon.src = data.icon_url;
+                    icon.style.display = 'block';
+                }
+
+                // Description
+                const descEl = document.getElementById('sw-desc');
+                if (descEl) { descEl.innerText = data.description || ''; setupDescriptionToggle(); }
+
+                // Tech stack
+                const stack = data.stack || [];
+                if (stack.length) {
+                    const tagsRow = document.getElementById('tags-row');
+                    tagsRow.innerHTML = stack.map(t => `<span class="tech-tag">${t}</span>`).join('');
+                    tagsRow.style.display = 'flex';
+                    document.getElementById('stack-label').style.display = '';
+                }
+
+                // Date
+                if (data.created_at) {
+                    const formatted = formatDate(data.created_at);
+                    if (formatted) {
+                        document.getElementById('meta-date-val').textContent = formatted;
+                        document.getElementById('meta-date').style.display = 'flex';
+                        document.getElementById('sidebar-date-val').textContent = formatted;
+                        document.getElementById('sidebar-stat-date').style.display = 'flex';
+                    }
+                }
+
+                // Likes
+                const likeCount = typeof data.like_count === 'number' ? data.like_count : 0;
+                setLikesUI(likeCount, hasUserLiked(projectId));
+
+                // Views
+                const currentViews = typeof data.view_count === 'number' ? data.view_count : 0;
+                document.getElementById('meta-views-val').textContent = formatCount(currentViews);
+                document.getElementById('meta-views').style.display = 'flex';
+                document.getElementById('sidebar-views-val').textContent = formatCount(currentViews);
+                document.getElementById('sidebar-stat-views').style.display = 'flex';
+
+                fetch(`/api/view/${projectId}`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(result => {
+                        if (!result.counted) return;
+                        const next = formatCount(currentViews + 1);
+                        document.getElementById('meta-views-val').textContent = next;
+                        document.getElementById('sidebar-views-val').textContent = next;
+                        setDoc(doc(db,'projects',projectId), { view_count: increment(1) }, { merge: true }).catch(()=>{});
+                    })
+                    .catch(() => {
+                        const sk = `viewed_${projectId}`;
+                        if (!sessionStorage.getItem(sk)) {
+                            sessionStorage.setItem(sk,'1');
+                            const next = formatCount(currentViews + 1);
+                            document.getElementById('meta-views-val').textContent = next;
+                            document.getElementById('sidebar-views-val').textContent = next;
+                            setDoc(doc(db,'projects',projectId), { view_count: increment(1) }, { merge: true }).catch(()=>{});
+                        }
+                    });
+
+                // Action buttons in sidebar
+                const actionsEl = document.getElementById('sidebar-actions');
+                if (data.link) {
+                    actionsEl.innerHTML += `<a class="btn-action primary" href="${data.link}" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Visit
+                    </a>`;
+                }
+                if (data.github_url) {
+                    actionsEl.innerHTML += `<a class="btn-action" href="${data.github_url}" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                        GitHub
+                    </a>`;
+                }
+
+                loaderProgress.style.width = '70%';
+
+                // Gallery
+                const images = data.preview_images && data.preview_images.length > 0
+                    ? data.preview_images
+                    : (data.icon_url ? [data.icon_url] : []);
+                renderGallery(images);
+
+                loaderProgress.style.width = '100%';
+                setTimeout(() => {
+                    loadingOverlay.style.opacity = '0';
+                    setTimeout(() => loadingOverlay.style.display = 'none', 500);
+                }, 300);
+
+            } catch(err) {
+                console.error(err);
+                loaderStatus.innerText = 'ERROR: ' + (err.code || err.message);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -322,6 +322,11 @@ app.get('/model', (req, res) => {
     res.sendFile(path.join(STATIC_DIR, 'model.html'));
 });
 
+// Serve software.html for /software?id=... (query string format)
+app.get('/software', (req, res) => {
+    res.sendFile(path.join(STATIC_DIR, 'software.html'));
+});
+
 // Graceful fallback for unknown routes
 app.use((req, res) => {
     res.sendFile(path.join(STATIC_DIR, 'index.html'));
