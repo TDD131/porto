@@ -316,6 +316,8 @@
                     let projectLink = data.link || '';
                     if (data.type === '3D Model' || data.type === 'Model') {
                         projectLink = `model.html?id=${doc.id}`;
+                    } else if (data.type === 'Software') {
+                        projectLink = `software.html?id=${doc.id}`;
                     }
                     
                     allProjects.push({
@@ -417,7 +419,7 @@
                         project.type === 'Web' ? 'Open Site' :
                         project.type === 'Software' ? 'Download' :
                         'View Project';
-                    const linkTarget = project.type === '3D Model' ? '_self' : '_blank';
+                    const linkTarget = (project.type === '3D Model' || project.type === 'Software') ? '_self' : '_blank';
                     const stackHtml = project.tags.map(tag => `<span class="tech-tag">${tag}</span>`).join('');
                     
                     return `
@@ -472,7 +474,7 @@
                         <div class="works-card-action">
                             ${project.link 
                                 ? `<a href="${project.link}" target="${
-                                    project.type === '3D Model' ? '_self' : '_blank'
+                                    (project.type === '3D Model' || project.type === 'Software') ? '_self' : '_blank'
                                 }" rel="noopener noreferrer" class="btn-access">${
                                     project.type === 'Game' ? 'Download Game' :
                                     project.type === '3D Model' ? 'View 3D Model' :

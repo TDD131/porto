@@ -468,7 +468,9 @@
                 const title = data.title || 'UNTITLED';
                 document.getElementById('sw-title').innerText = title;
                 document.getElementById('sidebar-title').innerText = title;
-                document.getElementById('nav-title').innerText = title;
+                if (document.getElementById('nav-title')) {
+                    document.getElementById('nav-title').innerText = title;
+                }
                 document.title = title + ' | Portfolio';
 
                 // Eyebrow / type
