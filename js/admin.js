@@ -2474,6 +2474,8 @@ function renderLogItem(id, data = {}) {
     if (!logListContainer) return;
     const item = document.createElement("div");
     item.className = "project-item";
+    item.style.flexDirection = "column";
+    item.style.alignItems = "stretch";
 
     const createdLabel = formatAdminTimestamp(data.created_at);
     const updatedLabel = data.updated_at ? formatAdminTimestamp(data.updated_at) : null;
