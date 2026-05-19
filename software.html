@@ -8,16 +8,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <style>
         body { margin: 0; background: var(--bg-color); color: var(--text-primary); font-family: var(--font-display); overflow-x: hidden; }
 
-        /* ── Top nav bar ── */
-        .sw-nav { position: sticky; top: 0; z-index: 200; background: color-mix(in srgb, var(--bg-color) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border-dim); padding: 14px 0; }
-        .sw-nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; gap: 12px; }
-        .back-btn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid var(--border-dim); color: var(--text-dim); padding: 7px 14px; text-decoration: none; font-size: 0.72rem; letter-spacing: 0.08rem; transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s; text-transform: uppercase; border-radius: 999px; font-family: var(--font-display); }
-        .back-btn:hover { background: color-mix(in srgb, var(--text-primary) 8%, transparent); border-color: var(--border-strong); color: var(--text-primary); transform: translateY(-1px); }
-        .sw-nav-breadcrumb { font-family: var(--font-code); font-size: 0.65rem; color: var(--text-dim); letter-spacing: 0.08rem; }
-        .sw-nav-breadcrumb span { color: var(--text-primary); }
+
 
         /* ── Page wrapper ── */
         .sw-page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
@@ -127,15 +122,47 @@
     </div>
 
     <!-- Nav -->
-    <nav class="sw-nav">
-        <div class="sw-nav-inner">
-            <a href="javascript:history.back()" class="back-btn">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                Back
-            </a>
-            <span class="sw-nav-breadcrumb">Portfolio / <span id="nav-title">Software</span></span>
+    <nav class="site-nav">
+        <div class="nav-inner">
+            <a class="logo" href="index.html" aria-label="Home">Tristan Davin Dakara</a>
+            <ul class="nav-links">
+                <li><a href="index.html#about">About</a></li>
+                <li><a href="index.html#stack">Services</a></li>
+                <li><a href="index.html#experience">Experience</a></li>
+                <li><a href="index.html#logs">Logs</a></li>
+                <li class="nav-work-item">
+                    <a href="index.html#projects" class="nav-work-trigger">Work</a>
+                    <div class="nav-work-panel">
+                        <a href="index.html#projects">
+                            Selected Work
+                            <span>Scroll to projects</span>
+                        </a>
+                        <a href="works.html">
+                            All Projects
+                            <span>Full projects page</span>
+                        </a>
+                    </div>
+                </li>
+                <li><a href="index.html#contact">Contact</a></li>
+            </ul>
+            <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme" aria-pressed="false"></button>
+            <button class="hamburger" id="hamburger" type="button" aria-label="Menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
         </div>
     </nav>
+
+    <!-- Mobile Nav Overlay -->
+    <div class="mobile-nav-overlay" id="mobile-nav">
+        <a href="index.html#about" class="mobile-nav-link">About</a>
+        <a href="index.html#stack" class="mobile-nav-link">Services</a>
+        <a href="index.html#experience" class="mobile-nav-link">Experience</a>
+        <a href="index.html#logs" class="mobile-nav-link">Logs</a>
+        <a href="works.html" class="mobile-nav-link">Work</a>
+        <a href="index.html#contact" class="mobile-nav-link">Contact</a>
+    </div>
 
     <!-- Page -->
     <div class="sw-page">
@@ -212,6 +239,48 @@
         <button class="lightbox-nav next" onclick="event.stopPropagation();lightboxNav(1)">&#8250;</button>
         <div id="lightbox-counter" class="lightbox-counter"></div>
     </div>
+    <!-- Hamburger Menu Logic -->
+    <script>
+        (function() {
+            var hamburger = document.getElementById('hamburger');
+            var mobileNav = document.getElementById('mobile-nav');
+            if (!hamburger || !mobileNav) return;
+            hamburger.addEventListener('click', function() {
+                hamburger.classList.toggle('active');
+                mobileNav.classList.toggle('open');
+                var isOpen = hamburger.classList.contains('active');
+                hamburger.setAttribute('aria-expanded', isOpen);
+                document.body.classList.toggle('mobile-menu-open', isOpen);
+            });
+            mobileNav.querySelectorAll('.mobile-nav-link').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    hamburger.classList.remove('active');
+                    mobileNav.classList.remove('open');
+                    document.body.classList.remove('mobile-menu-open');
+                    hamburger.setAttribute('aria-expanded', 'false');
+                });
+            });
+        })();
+    </script>
+
+    <!-- Theme Toggle -->
+    <script>
+        (function() {
+            var toggle = document.getElementById('theme-toggle');
+            if (!toggle) return;
+            function getTheme() { return document.documentElement.getAttribute('data-theme') || 'dark'; }
+            function setTheme(t) {
+                document.documentElement.setAttribute('data-theme', t);
+                try { localStorage.setItem('theme', t); } catch(e) {}
+                toggle.setAttribute('aria-pressed', t === 'light');
+            }
+            toggle.setAttribute('aria-pressed', getTheme() === 'light');
+            toggle.addEventListener('click', function() {
+                setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+            });
+        })();
+    </script>
+
     <!-- Page transition -->
     <script>
         (function(){
