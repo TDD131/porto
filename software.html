@@ -402,8 +402,8 @@
             heroEl.classList.remove('no-img');
             heroEl.innerHTML = `
                 <img id="gallery-main-img" src="${images[0]}" alt="Screenshot 1" loading="eager">
-                <button class="gallery-nav prev" onclick="galleryNav(-1)" style="${images.length < 2 ? 'display:none' : ''}">&#8249;</button>
-                <button class="gallery-nav next" onclick="galleryNav(1)" style="${images.length < 2 ? 'display:none' : ''}">&#8250;</button>
+                <button class="gallery-nav prev" onclick="event.stopPropagation(); galleryNav(-1)" style="${images.length < 2 ? 'display:none' : ''}">&#8249;</button>
+                <button class="gallery-nav next" onclick="event.stopPropagation(); galleryNav(1)" style="${images.length < 2 ? 'display:none' : ''}">&#8250;</button>
                 <span class="gallery-counter" id="gallery-counter">${images.length > 1 ? '1 / '+images.length : ''}</span>
             `;
             heroEl.onclick = () => openLightbox(currentIndex);
