@@ -417,7 +417,7 @@
                         project.type === 'Game' ? 'Download Game' :
                         project.type === '3D Model' ? 'View 3D Model' :
                         project.type === 'Web' ? 'Open Site' :
-                        project.type === 'Software' ? 'Download' :
+                        project.type === 'Software' ? 'View' :
                         'View Project';
                     const linkTarget = (project.type === '3D Model' || project.type === 'Software') ? '_self' : '_blank';
                     const stackHtml = project.tags.map(tag => `<span class="tech-tag">${tag}</span>`).join('');
@@ -479,7 +479,7 @@
                                     project.type === 'Game' ? 'Download Game' :
                                     project.type === '3D Model' ? 'View 3D Model' :
                                     project.type === 'Web' ? 'Open Site' :
-                                    project.type === 'Software' ? 'Download' :
+                                    project.type === 'Software' ? 'View' :
                                     'View Project'
                                 }</a>`
                                 : '<span class="btn-access disabled">No Link</span>'
