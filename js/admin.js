@@ -1124,7 +1124,7 @@ function populateStackPicker() {
     });
 
     // Populate options from Firestore
-    const q = query(collection(db, 'tech_stack'), orderBy('name'));
+    const q = query(collection(db, 'tech_stack'));
     onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             optionsContainer.innerHTML = '<div class="dropdown-option" style="cursor: default;">No modules available</div>';
@@ -1135,8 +1135,11 @@ function populateStackPicker() {
         const selectedItems = getSelectedStack();
 
         optionsContainer.innerHTML = '';
-        snapshot.forEach(docSnap => {
-            const techName = docSnap.data().name;
+        const items = [];
+        snapshot.forEach(docSnap => items.push(docSnap.data().name));
+        items.sort((a, b) => a.localeCompare(b));
+        
+        items.forEach(techName => {
             const isSelected = selectedItems.includes(techName);
 
             const option = document.createElement('div');
@@ -1222,7 +1225,7 @@ function populateEditStackPicker(projectId, selectedStack) {
     });
 
     // Populate options from Firestore
-    const q = query(collection(db, 'tech_stack'), orderBy('name'));
+    const q = query(collection(db, 'tech_stack'));
     onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             optionsContainer.innerHTML = '<div class="dropdown-option" style="cursor: default;">No modules available</div>';
@@ -1230,8 +1233,11 @@ function populateEditStackPicker(projectId, selectedStack) {
         }
 
         optionsContainer.innerHTML = '';
-        snapshot.forEach(docSnap => {
-            const techName = docSnap.data().name;
+        const items = [];
+        snapshot.forEach(docSnap => items.push(docSnap.data().name));
+        items.sort((a, b) => a.localeCompare(b));
+        
+        items.forEach(techName => {
             const isSelected = selectedStack.includes(techName);
 
             const option = document.createElement('div');
@@ -1323,7 +1329,7 @@ function initLogStackPicker() {
         logStackUnsubscribe = null;
     }
 
-    const q = query(collection(db, "tech_stack"), orderBy("name"));
+    const q = query(collection(db, "tech_stack"));
     logStackUnsubscribe = onSnapshot(q, (snapshot) => {
         const previousSelection = new Set(getSelectedValuesFromContainer(optionsContainer));
         optionsContainer.innerHTML = "";
@@ -1334,8 +1340,11 @@ function initLogStackPicker() {
             return;
         }
 
-        snapshot.forEach((docSnap) => {
-            const techName = docSnap.data().name;
+        const items = [];
+        snapshot.forEach((docSnap) => items.push(docSnap.data().name));
+        items.sort((a, b) => a.localeCompare(b));
+
+        items.forEach((techName) => {
             const isSelected = previousSelection.has(techName);
             const option = document.createElement("div");
             option.className = "dropdown-option" + (isSelected ? " selected" : "");
@@ -1403,7 +1412,7 @@ function mountEditLogStackPicker(logId, selected = [], slot) {
     };
     document.addEventListener("click", outsideHandler);
 
-    const q = query(collection(db, "tech_stack"), orderBy("name"));
+    const q = query(collection(db, "tech_stack"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const previousSelection = new Set(getSelectedValuesFromContainer(optionsContainer));
         if (previousSelection.size === 0 && selected.length) {
@@ -1418,8 +1427,11 @@ function mountEditLogStackPicker(logId, selected = [], slot) {
             return;
         }
 
-        snapshot.forEach((docSnap) => {
-            const techName = docSnap.data().name;
+        const items = [];
+        snapshot.forEach((docSnap) => items.push(docSnap.data().name));
+        items.sort((a, b) => a.localeCompare(b));
+
+        items.forEach((techName) => {
             const isSelected = previousSelection.has(techName);
             const option = document.createElement("div");
             option.className = "dropdown-option" + (isSelected ? " selected" : "");
@@ -2314,10 +2326,13 @@ The description should be briefly highlighting the core features and your role. 
 // 2. TECH STACK
 function loadStack() {
     const list = document.getElementById("admin-stack-list");
-    const q = query(collection(db, "tech_stack"), orderBy("category"));
+    const q = query(collection(db, "tech_stack"));
     onSnapshot(q, (snapshot) => {
         list.innerHTML = "";
-        snapshot.forEach(docSnap => renderStackItem(docSnap.id, docSnap.data(), list));
+        const items = [];
+        snapshot.forEach(docSnap => items.push({ id: docSnap.id, data: docSnap.data() }));
+        items.sort((a, b) => (a.data.name || "").localeCompare(b.data.name || ""));
+        items.forEach(item => renderStackItem(item.id, item.data, list));
     });
 }
 
