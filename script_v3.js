@@ -68,7 +68,10 @@ async function loadDevLogs() {
             const tags = normalizeLogTags(data.tags);
             const createdLabel = formatLogTimestamp(data.created_at);
             const updatedLabel = data.updated_at ? formatLogTimestamp(data.updated_at) : null;
+            const statusLabel = data.status || "On Progress";
+            const statusClass = statusLabel.toLowerCase().replace(" ", "-");
 
+            // Render each dev log card, showcasing its tags, date, message, and current status pill
             return `
                 <article class="devlog-card" data-animate-child>
                     <div class="devlog-meta">
@@ -76,8 +79,11 @@ async function loadDevLogs() {
                             <span class="devlog-time">${escapeHtml(createdLabel)}</span>
                             ${updatedLabel ? `<span class="devlog-updated">Edited ${escapeHtml(updatedLabel)}</span>` : ""}
                         </div>
-                        <div class="devlog-tags">
-                            ${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join("")}
+                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                            <span class="devlog-status ${statusClass}">${escapeHtml(statusLabel)}</span>
+                            <div class="devlog-tags">
+                                ${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join("")}
+                            </div>
                         </div>
                     </div>
                     <p class="devlog-message">${escapeHtml(data.message || "Untitled update")}</p>

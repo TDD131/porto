@@ -1149,6 +1149,30 @@ nav.site-nav {
     letter-spacing: 0.5px;
 }
 
+.devlog-status {
+    font-family: var(--font-code);
+    font-size: 0.65rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    border: 1px solid;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+
+.devlog-status.completed {
+    background: rgba(0, 255, 136, 0.08);
+    color: #00ff88;
+    border-color: rgba(0, 255, 136, 0.22);
+}
+
+.devlog-status.on-progress {
+    background: rgba(245, 166, 35, 0.08);
+    color: #f5a623;
+    border-color: rgba(245, 166, 35, 0.22);
+}
+
 .devlog-message {
     font-size: 1rem;
     line-height: 1.6;

@@ -2481,11 +2481,26 @@ function renderLogItem(id, data = {}) {
     const updatedLabel = data.updated_at ? formatAdminTimestamp(data.updated_at) : null;
     const tagList = normalizeLogTags(data.tags);
     const tagsLabel = (tagList.length ? tagList.join(", ") : "SYSTEM").toUpperCase();
+    const statusLabel = data.status || "On Progress";
+    const statusClass = statusLabel.toLowerCase().replace(" ", "-");
 
+    // Renders the dev log entry with its status badge (Completed / On Progress)
     item.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; gap:20px;">
             <div>
-                <h3>// ${data.message || ""}</h3>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h3>// ${data.message || ""}</h3>
+                    <span class="status-pill status-${statusClass}" style="
+                        font-family: var(--font-code);
+                        font-size: 0.65rem;
+                        padding: 2px 8px;
+                        border-radius: 999px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        border: 1px solid;
+                        ${statusLabel === 'Completed' ? 'background: rgba(0, 255, 136, 0.1); color: #00ff88; border-color: rgba(0, 255, 136, 0.3);' : 'background: rgba(245, 166, 35, 0.1); color: #f5a623; border-color: rgba(245, 166, 35, 0.3);'}
+                    ">${statusLabel}</span>
+                </div>
                 <p style="color: var(--text-dim); font-size: 0.8rem;">[${tagsLabel}]</p>
                 <small style="color: var(--text-dim); font-size: 0.75rem;">CREATED: ${createdLabel}${updatedLabel ? ` · EDITED: ${updatedLabel}` : ""}</small>
             </div>
@@ -2532,7 +2547,14 @@ function toggleEditLog(id, data = {}) {
                     </div>
                     <input type="text" id="edit-log-stack-hidden-${id}" style="display:none;" value="">
                 </div>
-                <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:16px;">
+                <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:16px;">
+                    <div>
+                        <label>STATUS</label>
+                        <select class="edit-log-status" required>
+                            <option value="On Progress">On Progress</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
                     <div>
                         <label>CREATED AT</label>
                         <input type="date" class="edit-log-created">
@@ -2554,11 +2576,13 @@ function toggleEditLog(id, data = {}) {
     const msgInput = slot.querySelector(".edit-log-message");
     const createdInput = slot.querySelector(".edit-log-created");
     const updatedInput = slot.querySelector(".edit-log-updated");
+    const statusSelect = slot.querySelector(".edit-log-status");
     const cancelBtn = slot.querySelector(".btn-cancel-log");
 
     msgInput.value = data.message || "";
     createdInput.value = formatDateInputValue(data.created_at);
     updatedInput.value = formatDateInputValue(data.updated_at);
+    statusSelect.value = data.status || "On Progress";
 
     mountEditLogStackPicker(id, normalizeLogTags(data.tags), slot);
 
@@ -2575,8 +2599,10 @@ function toggleEditLog(id, data = {}) {
         submitBtn.textContent = "SAVING...";
 
         try {
+            // Edit dev logs details, including updated status value which is synced to Firestore
             const payload = {
                 message: msgInput.value.trim(),
+                status: statusSelect.value,
                 tags: (() => {
                     const selection = getSelectedEditLogStack(id);
                     return selection.length ? selection : ["SYSTEM"];
@@ -2951,12 +2977,15 @@ document.getElementById("exp-form")?.addEventListener("submit", async(e) => {
 document.getElementById("log-form")?.addEventListener("submit", async(e) => {
     e.preventDefault();
     const messageEl = document.getElementById("l-msg");
+    const statusEl = document.getElementById("l-status");
     const createdEl = document.getElementById("l-created-at");
     const updatedEl = document.getElementById("l-updated-at");
     const nowTimestamp = serverTimestamp();
     const stackSelection = getSelectedLogStack();
+    // Prepares the new dev log entry data, including status to sync with Firestore backend
     const data = {
         message: messageEl.value.trim(),
+        status: statusEl.value,
         tags: stackSelection.length ? stackSelection : ["SYSTEM"],
         created_at: parseDateInput(createdEl?.value) || nowTimestamp,
         updated_at: parseDateInput(updatedEl?.value) || nowTimestamp
