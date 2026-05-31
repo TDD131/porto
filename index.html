@@ -21,6 +21,12 @@
 </head>
 <body class="page-home">
     <script>
+        if (window.location.hash) {
+            if ('scrollRestoration' in history) {
+                history.scrollRestoration = 'manual';
+            }
+            window.scrollTo(0, 0);
+        }
         document.body.classList.add('page-enter');
         requestAnimationFrame(function() {
             document.body.classList.remove('page-enter');
@@ -30,10 +36,10 @@
         <div class="nav-inner">
             <a class="logo" href="#hero" aria-label="Home">Tristan Davin Dakara</a>
             <ul class="nav-links">
-                <li><a href="index.html#about">About</a></li>
-                <li><a href="index.html#stack">Services</a></li>
-                <li><a href="index.html#experience">Experience</a></li>
-                <li><a href="index.html#logs">Logs</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#stack">Services</a></li>
+                <li><a href="#experience">Experience</a></li>
+                <li><a href="#logs">Logs</a></li>
                 <li class="nav-work-item">
                     <a href="#projects" class="nav-work-trigger">Work</a>
                     <div class="nav-work-panel">
@@ -289,6 +295,13 @@
             var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             if (reduceMotion) return;
 
+            // Normalize pathname for comparison (treat / and /index.html as same page)
+            function normalizePath(pathname) {
+                var p = pathname.replace(/\/index\.html$/, '/');
+                if (p === '') p = '/';
+                return p;
+            }
+
             document.querySelectorAll('a[href]').forEach(function(link) {
                 link.addEventListener('click', function(e) {
                     var url;
@@ -297,11 +310,17 @@
                     if (link.target && link.target !== '_self') return;
 
                     // Same-page hash links are handled by initAnchorScroll via Lenis
-                    if (url.pathname === window.location.pathname && url.hash) {
+                    var isSamePage = normalizePath(url.pathname) === normalizePath(window.location.pathname);
+                    if (isSamePage && url.hash) {
                         return;
                     }
 
-                    // Handle page navigation
+                    // If it's the same page with no hash, just ignore
+                    if (isSamePage && !url.hash) {
+                        return;
+                    }
+
+                    // Handle page navigation (different page)
                     e.preventDefault();
                     document.body.classList.add('page-leave');
                     setTimeout(function() {
@@ -522,6 +541,22 @@
         import { lenis } from './script_v3.js';
         import { initAnimations } from './js/animations.js';
         initAnimations(lenis);
+
+        if (window.location.hash) {
+            const hash = window.location.hash;
+            const target = document.querySelector(hash);
+            if (target) {
+                setTimeout(() => {
+                    const nav = document.querySelector('nav.site-nav');
+                    const navHeight = nav ? nav.offsetHeight : 80;
+                    lenis.scrollTo(target, {
+                        offset: -navHeight,
+                        duration: 1.8,
+                        easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t))
+                    });
+                }, 350);
+            }
+        }
     </script>
 </body>
 </html>
